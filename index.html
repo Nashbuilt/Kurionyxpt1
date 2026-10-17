@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Kurionyx sources practical products and builds a transparent, data-led retail operation.">
+  <title>Kurionyx — Practical products, carefully sourced</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="Kurionyx home"><span class="brand-mark">K</span><span>Kurionyx</span></a>
+    <nav aria-label="Main navigation">
+      <a href="#home">Home</a><a href="#products">Products</a><a href="#invest">Invest</a>
+      <button class="nav-toolkit" data-open-toolkit>Open toolkit <span>↗</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> Building a smarter retail operation</p>
+        <h1>Useful products.<br><em>Better decisions.</em></h1>
+        <p class="lead">We source practical products for everyday life, then use clear data to manage every unit, cost and opportunity.</p>
+        <div class="hero-actions"><a class="button primary" href="#products">Explore our approach</a><button class="text-button" data-open-toolkit>See the operations toolkit <span>→</span></button></div>
+      </div>
+      <div class="hero-visual" aria-label="Abstract product boxes on a grid">
+        <div class="orbit orbit-a"></div><div class="orbit orbit-b"></div>
+        <div class="box box-one"><span>01</span><b>source</b></div>
+        <div class="box box-two"><span>02</span><b>test</b></div>
+        <div class="box box-three"><span>03</span><b>grow</b></div>
+        <p class="working-label">Working brand · prototype v1</p>
+      </div>
+    </section>
+
+    <section class="ticker" aria-label="Business principles"><div>Thoughtful sourcing <span>✦</span> Clear unit economics <span>✦</span> Customer-led selection <span>✦</span> Responsible growth <span>✦</span></div></section>
+
+    <section class="story section-pad">
+      <p class="section-number">01 / What we do</p>
+      <div><h2>Small catalogue.<br>Serious attention.</h2><p>We are building an Amazon-first retail business around products that solve real, everyday problems. Instead of chasing every trend, we aim to test carefully, learn quickly and grow the products customers genuinely value.</p></div>
+      <div class="principles"><article><strong>01</strong><h3>Find</h3><p>Research demand, competition and customer pain points.</p></article><article><strong>02</strong><h3>Validate</h3><p>Test the numbers before committing significant stock.</p></article><article><strong>03</strong><h3>Improve</h3><p>Use reviews and returns to make each offer stronger.</p></article></div>
+    </section>
+
+    <section id="products" class="products section-pad">
+      <div class="section-heading"><div><p class="section-number">02 / Products</p><h2>A focused range,<br>built to evolve.</h2></div><p>These sample categories show how the customer-facing catalogue could work. Replace them once your first products are confirmed.</p></div>
+      <div class="product-grid">
+        <article class="product-card warm"><div class="product-object object-home"></div><p>Home organisation</p><h3>Make space work harder.</h3><span>Sample category →</span></article>
+        <article class="product-card green"><div class="product-object object-travel"></div><p>Travel essentials</p><h3>Less friction, wherever you go.</h3><span>Sample category →</span></article>
+        <article class="product-card blue"><div class="product-object object-wellbeing"></div><p>Everyday wellbeing</p><h3>Simple tools for better routines.</h3><span>Sample category →</span></article>
+      </div>
+    </section>
+
+    <section id="invest" class="invest section-pad">
+      <div class="invest-copy"><p class="section-number light">03 / Our next chapter</p><h2>Backing a business<br>built on the numbers.</h2><p>We are at the beginning: validating products, building our operating system and preparing for our first launches. We welcome conversations with people who understand patient, disciplined e-commerce growth.</p><a class="button light-button" href="mailto:hello@example.com?subject=Kurionyx%20conversation">Start a conversation</a><small>Exploratory enquiries only. This page is not an offer or invitation to purchase securities.</small></div>
+      <div class="invest-panel"><p>What we’re building</p><ul><li><span>01</span>Repeatable product research</li><li><span>02</span>Disciplined stock control</li><li><span>03</span>Connected financial reporting</li><li><span>04</span>Selective brand portfolio</li></ul></div>
+    </section>
+  </main>
+
+  <footer><a class="brand" href="#home"><span class="brand-mark">K</span><span>Kurionyx</span></a><p>Demonstration content.<br>Replace before public launch.</p><p>Built for the long run.<br>United Kingdom</p></footer>
+
+  <div class="toolkit" id="toolkit" aria-hidden="true">
+    <aside>
+      <button class="toolkit-logo" data-close-toolkit aria-label="Close toolkit">K</button>
+      <div><button class="tool-nav active" data-view="overview">⌂ <span>Overview</span></button><button class="tool-nav" data-view="stock">□ <span>Stock</span></button><button class="tool-nav" data-view="expenses">£ <span>Expenses</span></button><button class="tool-nav" data-view="integrations">◇ <span>Integrations</span></button></div>
+      <button class="tool-nav" data-close-toolkit>← <span>Back to site</span></button>
+    </aside>
+    <div class="tool-main">
+      <header><div><p>Operations toolkit</p><h2 id="tool-title">Overview</h2></div><div class="status-pill"><i></i> Browser data only</div></header>
+      <section class="tool-view active" data-panel="overview">
+        <div class="metric-grid"><article><p>Units in stock</p><strong id="metric-units">0</strong><span>Across all products</span></article><article><p>Stock value</p><strong id="metric-value">£0.00</strong><span>Based on unit cost</span></article><article><p>Total expenses</p><strong id="metric-expenses">£0.00</strong><span>All recorded costs</span></article><article class="accent-metric"><p>Estimated position</p><strong id="metric-position">£0.00</strong><span>Stock value minus expenses</span></article></div>
+        <div class="dashboard-grid"><article><div class="card-heading"><div><p>Stock snapshot</p><h3>Units by product</h3></div><button data-view-jump="stock">Manage →</button></div><div id="stock-bars" class="stock-bars"></div></article><article><div class="card-heading"><div><p>Recent activity</p><h3>Latest records</h3></div></div><div id="activity-list" class="activity-list"></div></article></div>
+      </section>
+      <section class="tool-view" data-panel="stock"><div class="section-tool-head"><div><p>Inventory</p><h3>Stock ledger</h3></div><button class="button primary small" data-open-modal="stock">+ Add stock</button></div><div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Units</th><th>Unit cost</th><th>Total value</th><th></th></tr></thead><tbody id="stock-table"></tbody></table></div></section>
+      <section class="tool-view" data-panel="expenses"><div class="section-tool-head"><div><p>Costs</p><h3>Expense ledger</h3></div><button class="button primary small" data-open-modal="expense">+ Add expense</button></div><div class="table-wrap"><table><thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Amount</th><th></th></tr></thead><tbody id="expense-table"></tbody></table></div></section>
+      <section class="tool-view" data-panel="integrations"><div class="section-tool-head"><div><p>Roadmap</p><h3>Future connections</h3></div></div><div class="integration-grid"><article><b>amazon</b><span class="planned">Planned</span><p>Orders, fees and live inventory through the Selling Partner API.</p></article><article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article><article><b>Monzo</b><span class="planned">Explore</span><p>Business account activity, subject to API access.</p></article><article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article></div><div class="roadmap-note"><strong>Prototype note</strong><p>No external accounts are connected in this version. The toolkit shows the intended workflow while keeping all data inside this browser.</p></div></section>
+    </div>
+  </div>
+
+  <dialog id="entry-modal"><form method="dialog" id="entry-form"><div class="modal-head"><div><p id="modal-kicker">New record</p><h3 id="modal-title">Add stock</h3></div><button value="cancel" aria-label="Close">×</button></div><div id="stock-fields"><label>Product name<input name="product" required placeholder="e.g. Packing cubes"></label><div class="field-row"><label>SKU<input name="sku" required placeholder="NS-001"></label><label>Units<input name="units" type="number" required min="1" placeholder="50"></label></div><label>Unit cost (£)<input name="unitCost" type="number" required min="0" step="0.01" placeholder="4.20"></label></div><div id="expense-fields"><label>Description<input name="description" placeholder="e.g. Sample order"></label><div class="field-row"><label>Category<select name="category"><option>Stock</option><option>Shipping</option><option>Amazon fees</option><option>Software</option><option>Marketing</option><option>Other</option></select></label><label>Date<input name="date" type="date"></label></div><label>Amount (£)<input name="amount" type="number" min="0" step="0.01" placeholder="120.00"></label></div><button class="button primary full" value="default" type="submit">Save record</button></form></dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
