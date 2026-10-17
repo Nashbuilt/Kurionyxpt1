@@ -9,9 +9,11 @@ First-stage website prototype for Kurionyx, combining:
 
 ## Running locally
 
-Open `index.html` in a browser. No installation or build step is required.
+Serve the folder with any static web server, then open the local URL in a browser. No build step is required. The Supabase browser client is loaded as a pinned ES module.
 
-The operations toolkit currently saves demonstration data to the browser's local storage. It does not yet connect to Amazon, Starling, Monzo, OpenAI, or any external database.
+The private operations toolkit uses Supabase Auth and a shared Postgres workspace. Row Level Security limits records to approved workspace members. The browser uses only the project's publishable key; never add a Supabase secret or service-role key to this repository.
+
+The database definition used for the initial project is in `supabase/schema.sql`. Amazon, Starling, Monzo, and OpenAI remain roadmap integrations.
 
 ## Prototype status
 
