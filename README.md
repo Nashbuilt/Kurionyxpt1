@@ -17,7 +17,9 @@ Serve the folder with any static web server, then open the local URL in a browse
 
 The private routes are marked `noindex` and intentionally unlinked from the public site. The operations toolkit uses Supabase Auth and a shared Postgres workspace. Row Level Security is the security boundary and limits records to approved workspace members. The browser uses only the project's publishable key; never add a Supabase secret or service-role key to this repository.
 
-The database definition used for the initial project is in `supabase/schema.sql`. Amazon, Starling, Monzo, and OpenAI remain roadmap integrations.
+The database definition used for the initial project is in `supabase/schema.sql`. Apply `supabase/inventory_expansion.sql` after it to add product categories, notes, landed costs, sales-led stock reduction, and incoming/outgoing shipment tracking. Amazon, Starling, Monzo, and OpenAI remain roadmap integrations.
+
+The dashboard groups variations and colours by their category. Recording a sale is an atomic database action: the sales record is saved only when enough units exist, and the matching stock quantity is reduced in the same transaction.
 
 ## Prototype status
 

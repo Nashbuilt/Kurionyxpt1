@@ -11,10 +11,12 @@
 <body class="toolkit-page">
   <div class="toolkit toolkit-standalone" id="toolkit">
     <aside>
-      <a class="toolkit-logo" href="toolkit.html" aria-label="Kurionyx toolkit home">K</a>
+      <a class="toolkit-logo" href="toolkit.html" aria-label="Kurionyx dashboard">K</a>
       <nav aria-label="Toolkit navigation">
-        <button class="tool-nav active" data-view="overview">⌂ <span>Overview</span></button>
+        <button class="tool-nav active" data-view="dashboard">⌂ <span>Dashboard</span></button>
         <button class="tool-nav" data-view="stock">□ <span>Stock</span></button>
+        <button class="tool-nav" data-view="sales">↗ <span>Sales</span></button>
+        <button class="tool-nav" data-view="shipping">⇄ <span>Shipping</span></button>
         <button class="tool-nav" data-view="expenses">£ <span>Expenses</span></button>
         <button class="tool-nav" data-view="integrations">◇ <span>Integrations</span></button>
       </nav>
@@ -23,7 +25,7 @@
 
     <main class="tool-main">
       <header>
-        <div><p>Operations toolkit</p><h1 id="tool-title">Overview</h1></div>
+        <div><p>Operations toolkit</p><h1 id="tool-title">Dashboard</h1></div>
         <div class="tool-account">
           <div class="status-pill" id="connection-status"><i></i> Checking access</div>
           <div class="account-summary"><span id="account-email"></span><small id="account-role"></small></div>
@@ -31,70 +33,64 @@
         </div>
       </header>
 
-      <section class="tool-loading" id="tool-loading" aria-live="polite">
-        <span class="loading-ring"></span>
-        <h2>Opening your workspace</h2>
-        <p>Checking your account and loading shared Kurionyx data.</p>
-      </section>
-
-      <section class="tool-loading error-panel" id="access-error" hidden>
-        <span class="auth-mark">!</span>
-        <h2>Workspace access unavailable</h2>
-        <p id="access-error-message">This account has not been added to the Kurionyx workspace.</p>
-        <button class="button primary" id="error-sign-out" type="button">Sign out and try another account</button>
-      </section>
+      <section class="tool-loading" id="tool-loading" aria-live="polite"><span class="loading-ring"></span><h2>Opening your workspace</h2><p>Checking your account and loading shared Kurionyx data.</p></section>
+      <section class="tool-loading error-panel" id="access-error" hidden><span class="auth-mark">!</span><h2>Workspace access unavailable</h2><p id="access-error-message">This account has not been added to the Kurionyx workspace.</p><button class="button primary" id="error-sign-out" type="button">Sign out and try another account</button></section>
 
       <div id="toolkit-app" hidden>
         <p class="workspace-message" id="workspace-message" role="status" aria-live="polite"></p>
 
-        <section class="tool-view active" data-panel="overview">
-          <div class="metric-grid">
-            <article><p>Units in stock</p><strong id="metric-units">0</strong><span>Across all products</span></article>
-            <article><p>Stock value</p><strong id="metric-value">£0.00</strong><span>Based on unit cost</span></article>
-            <article><p>Total expenses</p><strong id="metric-expenses">£0.00</strong><span>All recorded costs</span></article>
-            <article class="accent-metric"><p>Estimated position</p><strong id="metric-position">£0.00</strong><span>Stock value minus expenses</span></article>
+        <section class="tool-view active" data-panel="dashboard">
+          <div class="dashboard-title"><div><p>Live operations</p><h2>Your business at a glance</h2></div><div class="quick-actions"><button class="button primary small" data-open-stock>+ Add stock</button><button class="button secondary small" data-open-sale>Mark sold</button><button class="button secondary small" data-open-shipment>+ Shipment</button></div></div>
+          <div class="metric-grid metric-grid-six">
+            <article><p>Total stock</p><strong id="metric-units">0</strong><span>Units currently available</span></article>
+            <article><p>Inventory cost</p><strong id="metric-value">£0.00</strong><span>Products, shipping and fees</span></article>
+            <article><p>Units sold</p><strong id="metric-sold">0</strong><span>Recorded sales</span></article>
+            <article><p>Sales revenue</p><strong id="metric-revenue">£0.00</strong><span>Before expenses</span></article>
+            <article><p>Incoming</p><strong id="metric-incoming">0</strong><span>Active shipments</span></article>
+            <article class="accent-metric"><p>Outgoing</p><strong id="metric-outgoing">0</strong><span>Active shipments</span></article>
           </div>
-          <div class="quick-actions"><button class="button primary small" data-open-modal="stock">+ Add stock</button><button class="button secondary small" data-open-modal="expense">+ Add expense</button></div>
-          <div class="dashboard-grid">
-            <article><div class="card-heading"><div><p>Stock snapshot</p><h3>Units by product</h3></div><button data-view-jump="stock">Manage →</button></div><div id="stock-bars" class="stock-bars"></div></article>
-            <article><div class="card-heading"><div><p>Recent activity</p><h3>Latest records</h3></div></div><div id="activity-list" class="activity-list"></div></article>
+          <div class="insight-grid">
+            <article class="chart-card"><div class="card-heading"><div><p>Inventory mix</p><h3>Stock by category</h3></div><span class="chart-total" id="chart-total">0 units</span></div><div class="pie-layout"><div class="donut-chart" id="category-chart"><div><strong id="chart-centre-value">0</strong><span>units</span></div></div><div class="chart-legend" id="category-legend"></div></div><p class="chart-note">Colours and variations are grouped under their category.</p></article>
+            <article><div class="card-heading"><div><p>Movement</p><h3>Shipping pipeline</h3></div><button data-view-jump="shipping">View all →</button></div><div class="flow-summary"><div><span class="flow-icon incoming">↓</span><div><strong id="flow-incoming-units">0</strong><p>units coming in</p></div></div><div><span class="flow-icon outgoing">↑</span><div><strong id="flow-outgoing-units">0</strong><p>units going out</p></div></div></div><div id="shipment-preview" class="shipment-preview"></div></article>
           </div>
+          <div class="dashboard-grid lower-grid"><article><div class="card-heading"><div><p>Stock snapshot</p><h3>Top products</h3></div><button data-view-jump="stock">Manage →</button></div><div id="stock-bars" class="stock-bars"></div></article><article><div class="card-heading"><div><p>Recent activity</p><h3>Latest records</h3></div></div><div id="activity-list" class="activity-list"></div></article></div>
         </section>
 
         <section class="tool-view" data-panel="stock">
-          <div class="section-tool-head"><div><p>Inventory</p><h3>Stock ledger</h3></div><button class="button primary small" data-open-modal="stock">+ Add stock</button></div>
-          <div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Units</th><th>Unit cost</th><th>Total value</th><th></th></tr></thead><tbody id="stock-table"></tbody></table></div>
+          <div class="section-tool-head"><div><p>Inventory</p><h2>Stock ledger</h2><span>Each SKU can have its own variation while reporting rolls up by category.</span></div><button class="button primary small" data-open-stock>+ Add stock</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>SKU</th><th>Available</th><th>Landed cost</th><th>Notes</th><th></th></tr></thead><tbody id="stock-table"></tbody></table></div>
+        </section>
+
+        <section class="tool-view" data-panel="sales">
+          <div class="section-tool-head"><div><p>Outgoing stock</p><h2>Sales ledger</h2><span>Recording a sale automatically reduces the available stock.</span></div><button class="button primary small" data-open-sale>+ Mark items sold</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Marketplace</th><th>Units</th><th>Revenue</th><th>Fees</th><th>Notes</th></tr></thead><tbody id="sales-table"></tbody></table></div>
+        </section>
+
+        <section class="tool-view" data-panel="shipping">
+          <div class="section-tool-head"><div><p>Logistics</p><h2>Shipping</h2><span>Track supplier deliveries and stock moving to Amazon or other destinations.</span></div><button class="button primary small" data-open-shipment>+ Add shipment</button></div>
+          <div class="shipping-columns"><article><div class="shipping-column-head"><span class="flow-icon incoming">↓</span><div><p>From suppliers</p><h3>Incoming</h3></div></div><div id="incoming-shipments" class="shipment-list"></div></article><article><div class="shipping-column-head"><span class="flow-icon outgoing">↑</span><div><p>To Amazon &amp; others</p><h3>Outgoing</h3></div></div><div id="outgoing-shipments" class="shipment-list"></div></article></div>
         </section>
 
         <section class="tool-view" data-panel="expenses">
-          <div class="section-tool-head"><div><p>Costs</p><h3>Expense ledger</h3></div><button class="button primary small" data-open-modal="expense">+ Add expense</button></div>
+          <div class="section-tool-head"><div><p>Operating costs</p><h2>Expense ledger</h2><span>General costs outside product-level shipping and fees.</span></div><button class="button primary small" data-open-expense>+ Add expense</button></div>
           <div class="table-wrap"><table><thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Amount</th><th></th></tr></thead><tbody id="expense-table"></tbody></table></div>
         </section>
 
         <section class="tool-view" data-panel="integrations">
-          <div class="section-tool-head"><div><p>Roadmap</p><h3>Future connections</h3></div></div>
-          <div class="integration-grid">
-            <article><b>Supabase</b><span class="connected">Connected</span><p>Secure team sign-in and shared stock and expense records.</p></article>
-            <article><b>Amazon</b><span class="planned">Planned</span><p>Orders, fees and live inventory through the Selling Partner API.</p></article>
-            <article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article>
-            <article><b>Monzo</b><span class="planned">Explore</span><p>Business account activity, subject to API access.</p></article>
-            <article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article>
-          </div>
-          <div class="roadmap-note"><strong>Current version</strong><p>Core operational records save to the shared Kurionyx workspace. Marketplace, banking and AI connections remain on the roadmap.</p></div>
+          <div class="section-tool-head"><div><p>Roadmap</p><h2>Future connections</h2></div></div>
+          <div class="integration-grid"><article><b>Supabase</b><span class="connected">Connected</span><p>Secure team sign-in and shared operational records.</p></article><article><b>Amazon</b><span class="planned">Planned</span><p>Orders, fees and inventory through the Selling Partner API.</p></article><article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article><article><b>Monzo</b><span class="planned">Explore</span><p>Business account activity, subject to API access.</p></article><article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article></div>
         </section>
       </div>
     </main>
   </div>
 
-  <dialog id="entry-modal">
-    <form method="dialog" id="entry-form">
-      <div class="modal-head"><div><p id="modal-kicker">New record</p><h2 id="modal-title">Add stock</h2></div><button id="close-modal" type="button" aria-label="Close">×</button></div>
-      <div id="stock-fields"><label>Product name<input name="product" required placeholder="e.g. Packing cubes"></label><div class="field-row"><label>SKU<input name="sku" required placeholder="KR-001"></label><label>Units<input name="units" type="number" required min="1" placeholder="50"></label></div><label>Unit cost (£)<input name="unitCost" type="number" required min="0" step="0.01" placeholder="4.20"></label></div>
-      <div id="expense-fields"><label>Description<input name="description" required placeholder="e.g. Sample order"></label><div class="field-row"><label>Category<select name="category" required><option>Stock</option><option>Shipping</option><option>Amazon fees</option><option>Software</option><option>Marketing</option><option>Other</option></select></label><label>Date<input name="date" type="date" required></label></div><label>Amount (£)<input name="amount" type="number" required min="0" step="0.01" placeholder="120.00"></label></div>
-      <p class="form-message" id="entry-message" role="status" aria-live="polite"></p>
-      <button class="button primary full" value="default" type="submit">Save record</button>
-    </form>
-  </dialog>
+  <dialog id="stock-modal"><form id="stock-form"><div class="modal-head"><div><p>Inventory record</p><h2 id="stock-modal-title">Add stock</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><input name="id" type="hidden"><div class="field-row"><label>Product name<input name="product" required maxlength="200" placeholder="e.g. Packing cubes — blue"></label><label>Category<input name="category" required maxlength="100" placeholder="e.g. Travel organisers"></label></div><div class="field-row"><label>SKU<input name="sku" required maxlength="80" placeholder="KR-001-BLU"></label><label>Available units<input name="units" type="number" required min="0" step="1" placeholder="50"></label></div><div class="field-row"><label>Unit product cost (£)<input name="unitCost" type="number" required min="0" step="0.01" placeholder="4.20"></label><label>Total supplier shipping paid (£)<input name="shippingPaid" type="number" required min="0" step="0.01" value="0"></label></div><label>Other product fees (£)<input name="otherFees" type="number" required min="0" step="0.01" value="0"></label><label>Notes<textarea name="notes" maxlength="2000" placeholder="Supplier, variation, reorder details or anything useful"></textarea></label><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Save stock</button></form></dialog>
+
+  <dialog id="sale-modal"><form id="sale-form"><div class="modal-head"><div><p>Sales record</p><h2>Mark items sold</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><label>Stock item<select name="stockItemId" id="sale-stock-item" required></select></label><div class="field-row"><label>Units sold<input name="units" type="number" required min="1" step="1" placeholder="1"></label><label>Sale price per unit (£)<input name="unitSalePrice" type="number" required min="0" step="0.01" placeholder="15.99"></label></div><div class="field-row"><label>Marketplace<select name="marketplace" required><option>Amazon</option><option>eBay</option><option>Direct</option><option>Other</option></select></label><label>Total marketplace fees (£)<input name="marketplaceFees" type="number" required min="0" step="0.01" value="0"></label></div><label>Notes<textarea name="notes" maxlength="2000" placeholder="Order reference or sale details"></textarea></label><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Record sale and reduce stock</button></form></dialog>
+
+  <dialog id="shipment-modal"><form id="shipment-form"><div class="modal-head"><div><p>Logistics record</p><h2 id="shipment-modal-title">Add shipment</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><input name="id" type="hidden"><div class="field-row"><label>Direction<select name="direction" required><option value="incoming">Incoming from supplier</option><option value="outgoing">Outgoing to Amazon / elsewhere</option></select></label><label>Status<select name="status" required><option value="planned">Planned</option><option value="in_transit">In transit</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label></div><div class="field-row"><label>Item / shipment name<input name="itemName" required maxlength="200" placeholder="e.g. Packing cubes batch"></label><label>Category<input name="category" required maxlength="100" placeholder="e.g. Travel organisers"></label></div><div class="field-row"><label>Units<input name="units" type="number" required min="1" step="1" placeholder="250"></label><label>Expected date<input name="expectedDate" type="date"></label></div><div class="field-row"><label>Origin<input name="origin" maxlength="200" placeholder="Supplier or location"></label><label>Destination<input name="destination" maxlength="200" placeholder="Amazon BHX4"></label></div><div class="field-row"><label>Carrier<input name="carrier" maxlength="120" placeholder="DHL"></label><label>Tracking number<input name="trackingNumber" maxlength="160"></label></div><label>Shipping cost (£)<input name="shippingCost" type="number" required min="0" step="0.01" value="0"></label><label>Notes<textarea name="notes" maxlength="2000" placeholder="Cartons, booking details or customs notes"></textarea></label><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Save shipment</button></form></dialog>
+
+  <dialog id="expense-modal"><form id="expense-form"><div class="modal-head"><div><p>Expense record</p><h2>Add expense</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><label>Description<input name="description" required maxlength="240" placeholder="e.g. Software subscription"></label><div class="field-row"><label>Category<select name="category" required><option>Stock</option><option>Shipping</option><option>Amazon fees</option><option>Software</option><option>Marketing</option><option>Other</option></select></label><label>Date<input name="date" type="date" required></label></div><label>Amount (£)<input name="amount" type="number" required min="0" step="0.01" placeholder="120.00"></label><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Save expense</button></form></dialog>
 
   <script type="module" src="toolkit.js"></script>
 </body>
