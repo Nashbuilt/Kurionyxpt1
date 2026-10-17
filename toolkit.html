@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Private Kurionyx operations toolkit.">
+  <title>Operations toolkit — Kurionyx</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="toolkit-page">
+  <div class="toolkit toolkit-standalone" id="toolkit">
+    <aside>
+      <a class="toolkit-logo" href="toolkit.html" aria-label="Kurionyx toolkit home">K</a>
+      <nav aria-label="Toolkit navigation">
+        <button class="tool-nav active" data-view="overview">⌂ <span>Overview</span></button>
+        <button class="tool-nav" data-view="stock">□ <span>Stock</span></button>
+        <button class="tool-nav" data-view="expenses">£ <span>Expenses</span></button>
+        <button class="tool-nav" data-view="integrations">◇ <span>Integrations</span></button>
+      </nav>
+      <a class="tool-nav public-return" href="index.html">← <span>Public site</span></a>
+    </aside>
+
+    <main class="tool-main">
+      <header>
+        <div><p>Operations toolkit</p><h1 id="tool-title">Overview</h1></div>
+        <div class="tool-account">
+          <div class="status-pill" id="connection-status"><i></i> Checking access</div>
+          <div class="account-summary"><span id="account-email"></span><small id="account-role"></small></div>
+          <button class="sign-out" id="sign-out" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <section class="tool-loading" id="tool-loading" aria-live="polite">
+        <span class="loading-ring"></span>
+        <h2>Opening your workspace</h2>
+        <p>Checking your account and loading shared Kurionyx data.</p>
+      </section>
+
+      <section class="tool-loading error-panel" id="access-error" hidden>
+        <span class="auth-mark">!</span>
+        <h2>Workspace access unavailable</h2>
+        <p id="access-error-message">This account has not been added to the Kurionyx workspace.</p>
+        <button class="button primary" id="error-sign-out" type="button">Sign out and try another account</button>
+      </section>
+
+      <div id="toolkit-app" hidden>
+        <p class="workspace-message" id="workspace-message" role="status" aria-live="polite"></p>
+
+        <section class="tool-view active" data-panel="overview">
+          <div class="metric-grid">
+            <article><p>Units in stock</p><strong id="metric-units">0</strong><span>Across all products</span></article>
+            <article><p>Stock value</p><strong id="metric-value">£0.00</strong><span>Based on unit cost</span></article>
+            <article><p>Total expenses</p><strong id="metric-expenses">£0.00</strong><span>All recorded costs</span></article>
+            <article class="accent-metric"><p>Estimated position</p><strong id="metric-position">£0.00</strong><span>Stock value minus expenses</span></article>
+          </div>
+          <div class="quick-actions"><button class="button primary small" data-open-modal="stock">+ Add stock</button><button class="button secondary small" data-open-modal="expense">+ Add expense</button></div>
+          <div class="dashboard-grid">
+            <article><div class="card-heading"><div><p>Stock snapshot</p><h3>Units by product</h3></div><button data-view-jump="stock">Manage →</button></div><div id="stock-bars" class="stock-bars"></div></article>
+            <article><div class="card-heading"><div><p>Recent activity</p><h3>Latest records</h3></div></div><div id="activity-list" class="activity-list"></div></article>
+          </div>
+        </section>
+
+        <section class="tool-view" data-panel="stock">
+          <div class="section-tool-head"><div><p>Inventory</p><h3>Stock ledger</h3></div><button class="button primary small" data-open-modal="stock">+ Add stock</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Units</th><th>Unit cost</th><th>Total value</th><th></th></tr></thead><tbody id="stock-table"></tbody></table></div>
+        </section>
+
+        <section class="tool-view" data-panel="expenses">
+          <div class="section-tool-head"><div><p>Costs</p><h3>Expense ledger</h3></div><button class="button primary small" data-open-modal="expense">+ Add expense</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Amount</th><th></th></tr></thead><tbody id="expense-table"></tbody></table></div>
+        </section>
+
+        <section class="tool-view" data-panel="integrations">
+          <div class="section-tool-head"><div><p>Roadmap</p><h3>Future connections</h3></div></div>
+          <div class="integration-grid">
+            <article><b>Supabase</b><span class="connected">Connected</span><p>Secure team sign-in and shared stock and expense records.</p></article>
+            <article><b>Amazon</b><span class="planned">Planned</span><p>Orders, fees and live inventory through the Selling Partner API.</p></article>
+            <article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article>
+            <article><b>Monzo</b><span class="planned">Explore</span><p>Business account activity, subject to API access.</p></article>
+            <article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article>
+          </div>
+          <div class="roadmap-note"><strong>Current version</strong><p>Core operational records save to the shared Kurionyx workspace. Marketplace, banking and AI connections remain on the roadmap.</p></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="entry-modal">
+    <form method="dialog" id="entry-form">
+      <div class="modal-head"><div><p id="modal-kicker">New record</p><h2 id="modal-title">Add stock</h2></div><button id="close-modal" type="button" aria-label="Close">×</button></div>
+      <div id="stock-fields"><label>Product name<input name="product" required placeholder="e.g. Packing cubes"></label><div class="field-row"><label>SKU<input name="sku" required placeholder="KR-001"></label><label>Units<input name="units" type="number" required min="1" placeholder="50"></label></div><label>Unit cost (£)<input name="unitCost" type="number" required min="0" step="0.01" placeholder="4.20"></label></div>
+      <div id="expense-fields"><label>Description<input name="description" required placeholder="e.g. Sample order"></label><div class="field-row"><label>Category<select name="category" required><option>Stock</option><option>Shipping</option><option>Amazon fees</option><option>Software</option><option>Marketing</option><option>Other</option></select></label><label>Date<input name="date" type="date" required></label></div><label>Amount (£)<input name="amount" type="number" required min="0" step="0.01" placeholder="120.00"></label></div>
+      <p class="form-message" id="entry-message" role="status" aria-live="polite"></p>
+      <button class="button primary full" value="default" type="submit">Save record</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="toolkit.js"></script>
+</body>
+</html>

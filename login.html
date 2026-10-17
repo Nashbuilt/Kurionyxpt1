@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Private Kurionyx team sign in.">
+  <title>Team sign in — Kurionyx</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="login-page">
+  <main class="login-shell">
+    <section class="login-brand-panel">
+      <a class="brand login-brand" href="index.html"><span class="brand-mark">K</span><span>Kurionyx</span></a>
+      <div>
+        <p class="eyebrow light"><span></span> Private team workspace</p>
+        <h1>Run the operation<br>from one place.</h1>
+        <p>Stock, expenses and performance data for approved Kurionyx team members.</p>
+      </div>
+      <small>Authorised access only</small>
+    </section>
+
+    <section class="login-form-panel">
+      <div class="auth-card login-card">
+        <span class="auth-mark">K</span>
+        <p class="section-number">Team access</p>
+        <h2>Welcome back</h2>
+        <p>Sign in with your Kurionyx account to open the operations toolkit.</p>
+        <form id="login-form">
+          <label>Email address<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+          <label>Password<input name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="Your password"></label>
+          <p class="form-message" id="login-message" role="status" aria-live="polite"></p>
+          <button class="button primary full" type="submit">Sign in to toolkit</button>
+        </form>
+        <small>Accounts are created by the Kurionyx workspace owner.</small>
+        <a class="back-link" href="index.html">← Return to public site</a>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="auth.js"></script>
+</body>
+</html>
