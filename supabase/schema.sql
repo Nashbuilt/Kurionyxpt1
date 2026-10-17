@@ -62,6 +62,16 @@ $$;
 
 revoke all on function private.set_updated_at() from public, anon, authenticated;
 
+-- Supabase's automatic-RLS project option creates this helper in public.
+-- Keep its trigger behavior, but do not expose direct RPC execution.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end;
+$$;
+
 drop trigger if exists stock_items_set_updated_at on public.stock_items;
 create trigger stock_items_set_updated_at
 before update on public.stock_items
