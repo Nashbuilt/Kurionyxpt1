@@ -19,6 +19,7 @@
         <button class="tool-nav" data-view="shipping">⇄ <span>Shipping</span></button>
         <button class="tool-nav" data-view="expenses">£ <span>Expenses</span></button>
         <button class="tool-nav" data-view="integrations">◇ <span>Integrations</span></button>
+        <button class="tool-nav" data-view="settings">⚙ <span>Settings</span></button>
       </nav>
       <a class="tool-nav public-return" href="index.html">← <span>Public site</span></a>
     </aside>
@@ -82,6 +83,11 @@
           <div class="section-tool-head"><div><p>Roadmap</p><h2>Future connections</h2></div></div>
           <div class="integration-grid"><article><b>Supabase</b><span class="connected">Connected</span><p>Secure team sign-in and shared operational records.</p></article><article><b>Amazon</b><span class="planned">Planned</span><p>Orders, fees and inventory through the Selling Partner API.</p></article><article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article><article><b>Monzo</b><span class="planned">Explore</span><p>Business account activity, subject to API access.</p></article><article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article></div>
         </section>
+
+        <section class="tool-view" data-panel="settings">
+          <div class="section-tool-head"><div><p>Workspace configuration</p><h2>Settings</h2><span>Manage the information Kurionyx uses without changing source code.</span></div></div>
+          <div id="settings-root" class="settings-root" aria-live="polite"><div class="settings-loading"><span class="loading-ring"></span><p>Loading workspace settings…</p></div></div>
+        </section>
       </div>
     </main>
   </div>
@@ -95,6 +101,12 @@
   <dialog id="shipment-modal"><form id="shipment-form"><div class="modal-head"><div><p>Logistics record</p><h2 id="shipment-modal-title">Add shipment</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><input name="id" type="hidden"><div class="field-row"><label>Direction<select name="direction" required><option value="incoming">Incoming from supplier</option><option value="outgoing">Outgoing to Amazon / elsewhere</option></select></label><label>Status<select name="status" required><option value="planned">Planned</option><option value="in_transit">In transit</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label></div><div class="field-row"><label>Item / shipment name<input name="itemName" required maxlength="200" placeholder="e.g. Packing cubes batch"></label><label>Category<input name="category" required maxlength="100" placeholder="e.g. Travel organisers"></label></div><div class="field-row"><label>Units<input name="units" type="number" required min="1" step="1" placeholder="250"></label><label>Expected date<input name="expectedDate" type="date"></label></div><div class="field-row"><label>Origin<input name="origin" maxlength="200" placeholder="Supplier or location"></label><label>Destination<input name="destination" maxlength="200" placeholder="Amazon BHX4"></label></div><div class="field-row"><label>Carrier<input name="carrier" maxlength="120" placeholder="DHL"></label><label>Tracking number<input name="trackingNumber" maxlength="160"></label></div><div class="field-row"><label>Shipping cost (£)<input name="shippingCost" type="number" required min="0" step="0.01" value="0"></label><label>Record status<select name="dataStatus" required><option value="unverified">Unverified</option><option value="verified">Verified business record</option><option value="demonstration">Demonstration</option></select></label></div><label>Notes<textarea name="notes" maxlength="2000" placeholder="Cartons, booking details or customs notes"></textarea></label><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Save shipment</button></form></dialog>
 
   <dialog id="expense-modal"><form id="expense-form"><div class="modal-head"><div><p>Expense record</p><h2>Add expense</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><label>Description<input name="description" required maxlength="240" placeholder="e.g. Software subscription"></label><div class="field-row"><label>Category<select name="category" required><option>Stock</option><option>Shipping</option><option>Amazon fees</option><option>Software</option><option>Marketing</option><option>Other</option></select></label><label>Date<input name="date" type="date" required></label></div><div class="field-row"><label>Amount (£)<input name="amount" type="number" required min="0" step="0.01" placeholder="120.00"></label><label>Record status<select name="dataStatus" required><option value="unverified">Unverified</option><option value="verified">Verified business record</option><option value="demonstration">Demonstration</option></select></label></div><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Save expense</button></form></dialog>
+
+  <dialog id="settings-modal"><form id="settings-form"><div class="modal-head"><div><p id="settings-modal-eyebrow">Settings</p><h2 id="settings-modal-title">Add record</h2></div><button type="button" data-close-dialog aria-label="Close">×</button></div><input name="id" type="hidden"><div id="settings-form-fields"></div><p class="form-message" data-form-message role="status"></p><button class="button primary full" type="submit">Save</button></form></dialog>
+
+  <datalist id="product-category-options"></datalist>
+  <datalist id="sales-channel-options"></datalist>
+  <datalist id="expense-category-options"></datalist>
 
   <script type="module" src="toolkit.js"></script>
 </body>

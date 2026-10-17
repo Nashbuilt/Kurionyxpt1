@@ -1,4 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
+import { initSettings } from './settings.js';
 
 const supabase = createClient(
   'https://wszgmnngwnhtavuxqqyk.supabase.co',
@@ -551,6 +552,19 @@ async function start() {
   $('#account-role').textContent = membership.role === 'owner' ? 'Workspace owner' : 'Team member';
   try {
     await loadWorkspaceData();
+    try {
+      await initSettings({
+        supabase,
+        workspaceId,
+        userId: session.user.id,
+        isOwner: membership.role === 'owner',
+        notify: showMessage
+      });
+    } catch (settingsError) {
+      const settingsRoot = $('#settings-root');
+      settingsRoot.innerHTML = '<div class="settings-error"><strong>Settings could not be loaded.</strong><p></p><small>The existing operations toolkit remains available.</small></div>';
+      settingsRoot.querySelector('p').textContent = settingsError.message;
+    }
     loadingPanel.hidden = true;
     toolkitApp.hidden = false;
     setStatus('Cloud data connected', 'connected');
