@@ -6,10 +6,12 @@ const migrationPath = new URL('../supabase/migrations/202610170001_stage1_invent
 const toolkitPath = new URL('../toolkit.js', import.meta.url);
 const htmlPath = new URL('../toolkit.html', import.meta.url);
 const removalMigrationPath = new URL('../supabase/migrations/20261019122200_remove_stock_from_active_records.sql', import.meta.url);
+const saleVoidMigrationPath = new URL('../supabase/migrations/20261019130000_void_stock_sales.sql', import.meta.url);
 
-const [migration, removalMigration, toolkit, html] = await Promise.all([
+const [migration, removalMigration, saleVoidMigration, toolkit, html] = await Promise.all([
   readFile(migrationPath, 'utf8'),
   readFile(removalMigrationPath, 'utf8'),
+  readFile(saleVoidMigrationPath, 'utf8'),
   readFile(toolkitPath, 'utf8'),
   readFile(htmlPath, 'utf8')
 ]);
@@ -41,6 +43,18 @@ test('business record deletion is replaced by reasoned archiving', () => {
   assert.match(migration, /revoke delete on table public\.shipments from authenticated/i);
   assert.match(migration, /function public\.archive_business_record/i);
   assert.doesNotMatch(toolkit, /\.delete\(/);
+});
+
+test('voiding a sale restores stock exactly once without deleting history', () => {
+  assert.match(saleVoidMigration, /function public\.void_stock_sale/i);
+  assert.match(saleVoidMigration, /'adjustment'[\s\S]*target_sale\.units/i);
+  assert.match(saleVoidMigration, /'stock_sale_void'/i);
+  assert.match(saleVoidMigration, /set archived_at = now\(\)/i);
+  assert.match(saleVoidMigration, /revoke update, delete on table public\.stock_sales/i);
+  assert.doesNotMatch(saleVoidMigration, /delete\s+from\s+public\.stock_sales/i);
+  assert.match(toolkit, /data-void-sale="\$\{sale\.id\}">Remove/i);
+  assert.match(toolkit, /void_stock_sale/i);
+  assert.match(toolkit, /confirmedSales = records\.sales\.filter\(item => item\.dataStatus === 'verified' && !item\.archivedAt\)/);
 });
 
 test('stock can be removed from active records without deleting history', () => {

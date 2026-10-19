@@ -2,7 +2,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(18);
 
 insert into auth.users (id, email)
 values
@@ -47,11 +47,23 @@ select throws_ok(
 );
 select is((select units from public.stock_items where sku = 'STAGE1-ONE'), 7::bigint, 'rejected sale leaves stock unchanged');
 
+select public.void_stock_sale(
+  (select id from public.stock_sales where stock_item_id = (select id from public.stock_items where sku = 'STAGE1-ONE')),
+  'Duplicate test sale'
+);
+select is((select units from public.stock_items where sku = 'STAGE1-ONE'), 10::bigint, 'voiding a sale restores its stock once');
+select ok((select archived_at is not null from public.stock_sales limit 1), 'voided sale is archived rather than deleted');
+select is((select count(*) from public.inventory_movements where source_type = 'stock_sale_void'), 1::bigint, 'void creates one compensating movement');
+select throws_ok(
+  $$select public.void_stock_sale((select id from public.stock_sales limit 1), 'Second void attempt')$$,
+  '42501', null, 'a sale cannot be voided twice'
+);
+
 select public.record_inventory_movement(
   (select id from public.stock_items where sku = 'STAGE1-ONE'),
   'adjustment', -2, 'Count correction', 'verified'
 );
-select is((select units from public.stock_items where sku = 'STAGE1-ONE'), 5::bigint, 'reasoned adjustment changes stock');
+select is((select units from public.stock_items where sku = 'STAGE1-ONE'), 8::bigint, 'reasoned adjustment changes stock');
 
 select throws_ok(
   $$select public.record_inventory_movement(
@@ -74,7 +86,7 @@ select throws_ok(
     'receipt', 1, 'Wrong workspace attempt', 'verified')$$,
   '42501', null, 'cross-workspace movement is rejected'
 );
-select is((select count(*) from public.inventory_movements), 3::bigint, 'RLS exposes only the current workspace movements');
+select is((select count(*) from public.inventory_movements), 4::bigint, 'RLS exposes only the current workspace movements');
 
 select throws_ok(
   $$update public.stock_items set units = 99 where sku = 'STAGE1-ONE'$$,
