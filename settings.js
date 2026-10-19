@@ -98,6 +98,18 @@ const labelValue = value => String(value || '').replaceAll('_', ' ').replace(/\b
 
 export async function initSettings(options) {
   Object.assign(state, options);
+  const monzoResult = new URLSearchParams(window.location.search).get('monzo');
+  if (monzoResult) {
+    state.activeTab = 'integrations';
+    const messages = {
+      connected: ['Monzo business account connected successfully.', 'success'],
+      no_business_account: ['Monzo did not return a business account. No personal account was connected.', 'error'],
+      invalid_state: ['The Monzo connection expired or was already used. Please try again.', 'error']
+    };
+    const [message, level] = messages[monzoResult] || ['The Monzo connection could not be completed.', 'error'];
+    state.notify(message, level);
+    window.history.replaceState({}, '', window.location.pathname);
+  }
   bindSettingsEvents();
   enhanceOperationalForms();
   await loadSettings();
@@ -191,8 +203,21 @@ function renderTeam() {
 }
 
 function renderIntegrations() {
-  const statusText = { not_connected: 'Not connected', planned: 'Planned', configuration_required: 'Configuration required' };
-  return `<section class="settings-section"><div class="settings-heading"><div><p>Future connections</p><h3>Integrations</h3><span>No third-party credentials or fake connection controls are stored in this browser application.</span></div></div><div class="settings-notice">Supabase is the only active application service. The entries below are planning records, not working connections.</div><div class="settings-integration-grid">${state.integrations.map(item => `<article><span class="integration-state">${esc(statusText[item.status] || labelValue(item.status))}</span><h4>${esc(item.display_name)}</h4><p>${esc(item.notes)}</p></article>`).join('') || '<p class="empty compact">No integration planning records found.</p>'}</div></section>`;
+  const statusText = { not_connected: 'Not connected', planned: 'Planned', configuration_required: 'Ready to connect', connected: 'Connected' };
+  return `<section class="settings-section"><div class="settings-heading"><div><p>Secure connections</p><h3>Integrations</h3><span>Credentials and bank tokens remain server-side. Connecting Monzo grants read access only to the account you approve.</span></div></div>${ownerNotice()}<div class="settings-integration-grid">${state.integrations.map(item => `<article><span class="integration-state">${esc(statusText[item.status] || labelValue(item.status))}</span><h4>${esc(item.display_name)}</h4><p>${esc(item.notes)}</p>${item.provider_key === 'monzo_developer_api' ? `<button type="button" class="button ${item.status === 'connected' ? 'secondary' : 'primary'} small" data-connect-monzo ${state.isOwner ? '' : 'disabled'}>${item.status === 'connected' ? 'Reconnect Monzo' : 'Connect Monzo'}</button>` : ''}</article>`).join('') || '<p class="empty compact">No integration records found.</p>'}</div></section>`;
+}
+
+async function connectMonzo(button) {
+  button.disabled = true;
+  button.textContent = 'Opening Monzo…';
+  const { data, error } = await state.supabase.functions.invoke('monzo-oauth-callback', { body: { action: 'start' } });
+  if (error || !data?.url) {
+    button.disabled = false;
+    button.textContent = 'Connect Monzo';
+    state.notify(error?.message || data?.error || 'Could not start the Monzo connection.', 'error');
+    return;
+  }
+  window.location.assign(data.url);
 }
 
 function bindSettingsEvents() {
@@ -213,6 +238,8 @@ function bindSettingsEvents() {
     if (archive) return archiveRecord(archive.dataset.settingsArchive, Number(archive.dataset.recordId));
     const restore = event.target.closest('[data-settings-restore]');
     if (restore) return restoreRecord(restore.dataset.settingsRestore, Number(restore.dataset.recordId));
+    const monzo = event.target.closest('[data-connect-monzo]');
+    if (monzo) return connectMonzo(monzo);
   });
   root().addEventListener('input', event => {
     if (event.target.matches('[data-settings-search]')) {
