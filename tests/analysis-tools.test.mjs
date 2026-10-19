@@ -27,6 +27,18 @@ test('landed unit cost allocates batch costs across purchased units', () => {
   assert.equal(landedUnitCost(item, movements), 8);
 });
 
+test('linked expenses affect landed cost only when explicitly included', () => {
+  const item = { id: 1, units: 10, unitCost: 5, shippingPaid: 0, otherFees: 0 };
+  const movements = [{ stockItemId: 1, type: 'receipt', quantityDelta: 10 }];
+  const expenses = [
+    { stockItemId: 1, amount: 20, includeInLandedCost: true, dataStatus: 'verified' },
+    { stockItemId: 1, amount: 100, includeInLandedCost: false, dataStatus: 'verified' },
+    { stockItemId: 1, amount: 30, includeInLandedCost: true, dataStatus: 'unverified' }
+  ];
+  assert.equal(landedUnitCost(item, movements, expenses), 10);
+  assert.equal(landedUnitCost(item, movements, expenses, true), 7);
+});
+
 test('expense analysis excludes demonstration and unverified records by default', () => {
   const expenses = [{ date: '2026-10-01', amount: 10, category: 'Software', dataStatus: 'verified' }, { date: '2026-10-02', amount: 100, category: 'Demo', dataStatus: 'demonstration' }, { date: '2026-10-03', amount: 30, category: 'Other', dataStatus: 'unverified' }];
   assert.equal(groupExpenses(expenses, 'month')[0].total, 10);
@@ -39,6 +51,6 @@ test('toolkit exposes calculator and spending tabs with live stock costing', () 
   assert.match(html, /data-view="spending"/);
   assert.match(html, /data-panel="spending"/);
   assert.match(html, /id="stock-cost-preview"/);
-  assert.match(toolkit, /landedUnitCost\(item, records\.movements\)/);
+  assert.match(toolkit, /landedUnitCost\(item, records\.movements, records\.expenses/);
   assert.match(toolkit, /groupExpenses\(records\.expenses/);
 });

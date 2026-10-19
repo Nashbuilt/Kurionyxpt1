@@ -35,9 +35,19 @@ export function purchasedUnitsFor(stockItemId, movements, fallbackUnits = 0) {
   return purchased > 0 ? purchased : Math.max(0, finite(fallbackUnits));
 }
 
-export function landedUnitCost(item, movements = []) {
+export function linkedExpenseTotal(stockItemId, expenses = [], confirmedOnly = false) {
+  return expenses
+    .filter(expense => String(expense.stockItemId) === String(stockItemId)
+      && expense.includeInLandedCost
+      && !expense.archivedAt
+      && (!confirmedOnly || expense.dataStatus === 'verified'))
+    .reduce((sum, expense) => sum + Math.max(0, finite(expense.amount)), 0);
+}
+
+export function landedUnitCost(item, movements = [], expenses = [], confirmedOnly = false) {
   const basisUnits = purchasedUnitsFor(item.id, movements, item.units);
-  const allocatedBatchCosts = finite(item.shippingPaid) + finite(item.otherFees);
+  const allocatedBatchCosts = finite(item.shippingPaid) + finite(item.otherFees)
+    + linkedExpenseTotal(item.id, expenses, confirmedOnly);
   return Math.max(0, finite(item.unitCost)) + (basisUnits > 0 ? allocatedBatchCosts / basisUnits : 0);
 }
 

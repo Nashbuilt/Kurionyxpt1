@@ -64,7 +64,7 @@ function view(name) {
 async function loadWorkspaceData() {
   const [stockResult, expenseResult, salesResult, shipmentResult, movementResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
-    supabase.from('expenses').select('id, description, category, expense_date, amount, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
+    supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
     supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, sold_at, created_at').order('sold_at', { ascending: false }),
     supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200)
@@ -82,7 +82,10 @@ async function loadWorkspaceData() {
   }));
   records.expenses = (expenseResult.data || []).map(item => ({
     id: item.id, description: item.description, category: item.category, date: item.expense_date,
-    amount: Number(item.amount), dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at
+    amount: Number(item.amount), stockItemId: item.stock_item_id,
+    includeInLandedCost: item.include_in_landed_cost, sourceProvider: item.source_provider,
+    externalTransactionId: item.external_transaction_id, dataStatus: item.data_status,
+    archivedAt: item.archived_at, createdAt: item.created_at
   }));
   records.sales = (salesResult.data || []).map(item => ({
     id: item.id, stockItemId: item.stock_item_id, units: Number(item.units), unitSalePrice: Number(item.unit_sale_price),
@@ -107,8 +110,8 @@ function stockById(id) {
   return records.stock.find(item => String(item.id) === String(id));
 }
 
-function currentProductCost(item) {
-  return item.units * landedUnitCost(item, records.movements);
+function currentProductCost(item, confirmedOnly = false) {
+  return item.units * landedUnitCost(item, records.movements, records.expenses, confirmedOnly);
 }
 
 function renderDashboard() {
@@ -116,7 +119,7 @@ function renderDashboard() {
   const confirmedSales = records.sales.filter(item => item.dataStatus === 'verified');
   const confirmedShipments = records.shipments.filter(item => item.dataStatus === 'verified' && !item.archivedAt);
   const totalUnits = confirmedStock.reduce((sum, item) => sum + item.units, 0);
-  const inventoryCost = confirmedStock.reduce((sum, item) => sum + currentProductCost(item), 0);
+  const inventoryCost = confirmedStock.reduce((sum, item) => sum + currentProductCost(item, true), 0);
   const unitsSold = confirmedSales.reduce((sum, sale) => sum + sale.units, 0);
   const revenue = confirmedSales.reduce((sum, sale) => sum + sale.units * sale.unitSalePrice, 0);
   const active = confirmedShipments.filter(item => !['delivered', 'cancelled'].includes(item.status));
@@ -180,8 +183,13 @@ function renderCategoryChart(totalUnits) {
 function renderStock() {
   const activeStock = records.stock.filter(item => !item.archivedAt);
   $('#stock-table').innerHTML = activeStock.length
-    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements); const basis = purchasedUnitsFor(item.id, records.movements, item.units); return `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td>${money(currentProductCost(item))}</td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}" ${item.units !== 0 ? 'disabled title="Reduce stock to zero before archiving"' : ''}>Archive</button></div></td></tr>`; }).join('')
+    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements, records.expenses); const basis = purchasedUnitsFor(item.id, records.movements, item.units); return `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td>${money(currentProductCost(item))}</td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-stock-expense="${item.id}">Add expense</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}" ${item.units !== 0 ? 'disabled title="Reduce stock to zero before archiving"' : ''}>Archive</button></div></td></tr>`; }).join('')
     : '<tr><td colspan="9" class="empty">No active stock records yet. Use “Add stock item” to create the first one.</td></tr>';
+
+  const stockExpenses = records.expenses.filter(item => item.stockItemId && !item.archivedAt);
+  $('#stock-expense-table').innerHTML = stockExpenses.length
+    ? stockExpenses.map(item => { const stock = stockById(item.stockItemId); return `<tr><td>${shortDate(item.date)}</td><td><strong>${esc(stock?.product || 'Archived stock item')}</strong><small class="cell-detail">${esc(stock?.sku || '')}</small></td><td>${esc(item.description)}</td><td>${esc(item.category)}</td><td>${money(item.amount)}</td><td>${item.includeInLandedCost ? 'Included' : 'Cash only'}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><button class="delete-row" data-archive-record="expense" data-record-id="${item.id}">Archive</button></td></tr>`; }).join('')
+    : '<tr><td colspan="8" class="empty">No expenses are linked to stock yet.</td></tr>';
 }
 
 function renderSpending() {
@@ -221,7 +229,7 @@ function updateStockCostPreview() {
   const form = $('#stock-form');
   const existing = stockById(form.elements.id.value);
   const units = existing ? purchasedUnitsFor(existing.id, records.movements, existing.units) : Number(form.elements.initialUnits.value);
-  const preview = landedUnitCost({ id: existing?.id, units, unitCost: form.elements.unitCost.value, shippingPaid: form.elements.shippingPaid.value, otherFees: form.elements.otherFees.value }, existing ? records.movements : []);
+  const preview = landedUnitCost({ id: existing?.id, units, unitCost: form.elements.unitCost.value, shippingPaid: form.elements.shippingPaid.value, otherFees: form.elements.otherFees.value }, existing ? records.movements : [], existing ? records.expenses : []);
   $('#stock-cost-preview strong').textContent = money(preview);
   $('#stock-cost-preview small').textContent = units > 0 ? `Based on ${number(units)} purchased units.` : 'Enter received units to allocate batch costs.';
 }
@@ -256,8 +264,18 @@ function renderShipments() {
 function renderExpenses() {
   const activeExpenses = records.expenses.filter(item => !item.archivedAt);
   $('#expense-table').innerHTML = activeExpenses.length
-    ? activeExpenses.map(item => `<tr><td><strong>${esc(item.description)}</strong></td><td>${esc(item.category)}</td><td>${shortDate(item.date)}</td><td>${money(item.amount)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span><button class="review-status" data-classify-record="expense" data-record-id="${item.id}" data-current-status="${esc(item.dataStatus)}">Review</button></td><td><button class="delete-row" data-archive-record="expense" data-record-id="${item.id}">Archive</button></td></tr>`).join('')
-    : '<tr><td colspan="6" class="empty">No general expenses recorded yet.</td></tr>';
+    ? activeExpenses.map(item => { const stock = stockById(item.stockItemId); return `<tr><td><strong>${esc(item.description)}</strong>${item.sourceProvider === 'monzo' ? '<small class="cell-detail">Imported from Monzo</small>' : ''}</td><td>${esc(item.category)}</td><td>${stock ? `<strong>${esc(stock.product)}</strong><small class="cell-detail">${item.includeInLandedCost ? 'Included in landed cost' : 'Linked only'}</small>` : '—'}</td><td>${shortDate(item.date)}</td><td>${money(item.amount)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span><button class="review-status" data-classify-record="expense" data-record-id="${item.id}" data-current-status="${esc(item.dataStatus)}">Review</button></td><td><button class="delete-row" data-archive-record="expense" data-record-id="${item.id}">Archive</button></td></tr>`; }).join('')
+    : '<tr><td colspan="7" class="empty">No expenses recorded yet.</td></tr>';
+}
+
+function openExpense(stockItemId = '') {
+  const form = $('#expense-form');
+  form.reset();
+  form.elements.date.value = new Date().toISOString().slice(0, 10);
+  const activeStock = records.stock.filter(item => !item.archivedAt);
+  form.elements.stockItemId.innerHTML = `<option value="">General expense — no stock link</option>${activeStock.map(item => `<option value="${item.id}" ${String(item.id) === String(stockItemId) ? 'selected' : ''}>${esc(item.product)} — ${esc(item.sku)}</option>`).join('')}`;
+  form.elements.includeInLandedCost.checked = Boolean(stockItemId);
+  prepareDialog(dialogs.expense);
 }
 
 function renderSaleOptions(selectedId = '') {
@@ -271,6 +289,7 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-edit-stock]').forEach(button => button.onclick = () => openStock(stockById(button.dataset.editStock)));
   document.querySelectorAll('[data-sell-stock]').forEach(button => button.onclick = () => openSale(button.dataset.sellStock));
   document.querySelectorAll('[data-move-stock]').forEach(button => button.onclick = () => openMovement(stockById(button.dataset.moveStock)));
+  document.querySelectorAll('[data-stock-expense]').forEach(button => button.onclick = () => openExpense(button.dataset.stockExpense));
   document.querySelectorAll('[data-archive-stock]').forEach(button => button.onclick = () => archiveStock(button.dataset.archiveStock));
   document.querySelectorAll('[data-edit-shipment]').forEach(button => button.onclick = () => openShipment(records.shipments.find(item => String(item.id) === button.dataset.editShipment)));
   document.querySelectorAll('[data-archive-record]').forEach(button => button.onclick = () => archiveBusinessRecord(button.dataset.archiveRecord, button.dataset.recordId));
@@ -473,12 +492,20 @@ $('#expense-form').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const values = new FormData(form);
+  const stockItemId = values.get('stockItemId');
+  const includeInLandedCost = values.get('includeInLandedCost') === 'on';
+  if (includeInLandedCost && !stockItemId) {
+    form.querySelector('[data-form-message]').textContent = 'Choose a stock item before including an expense in landed cost.';
+    return;
+  }
   const query = supabase.from('expenses').insert({
     workspace_id: workspaceId,
     description: String(values.get('description')).trim(),
     category: String(values.get('category')),
     expense_date: String(values.get('date')),
     amount: Number(values.get('amount')),
+    stock_item_id: stockItemId ? Number(stockItemId) : null,
+    include_in_landed_cost: includeInLandedCost,
     data_status: String(values.get('dataStatus'))
   });
   await saveForm(form, query, 'Expense saved.', dialogs.expense);
@@ -573,17 +600,15 @@ document.querySelectorAll('[data-view-jump]').forEach(button => button.addEventL
 document.querySelectorAll('[data-open-stock]').forEach(button => button.addEventListener('click', () => openStock()));
 document.querySelectorAll('[data-open-sale]').forEach(button => button.addEventListener('click', () => openSale()));
 document.querySelectorAll('[data-open-shipment]').forEach(button => button.addEventListener('click', () => openShipment()));
-document.querySelectorAll('[data-open-expense]').forEach(button => button.addEventListener('click', () => {
-  const form = $('#expense-form');
-  form.reset();
-  form.elements.date.value = new Date().toISOString().slice(0, 10);
-  prepareDialog(dialogs.expense);
-}));
+document.querySelectorAll('[data-open-expense]').forEach(button => button.addEventListener('click', () => openExpense()));
 document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 $('#profit-calculator').addEventListener('input', renderCalculator);
 $('#profit-calculator').addEventListener('change', renderCalculator);
 $('#spending-period').addEventListener('change', renderSpending);
 $('#spending-confirmed-only').addEventListener('change', renderSpending);
+$('#expense-form').elements.stockItemId.addEventListener('change', event => {
+  if (!event.currentTarget.value) $('#expense-form').elements.includeInLandedCost.checked = false;
+});
 ['initialUnits', 'unitCost', 'shippingPaid', 'otherFees'].forEach(name => $('#stock-form').elements[name].addEventListener('input', updateStockCostPreview));
 $('#sign-out').addEventListener('click', signOut);
 $('#error-sign-out').addEventListener('click', signOut);

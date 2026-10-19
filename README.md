@@ -25,6 +25,8 @@ The dashboard groups variations and colours by their category. Confirmed KPIs in
 
 The internal toolkit also includes a browser-local profitability calculator that accepts mixed per-unit and whole-batch inputs, plus a spending view that groups the existing expense ledger by day, week or month. Stock landed unit cost allocates recorded supplier shipping and product fees across opening-balance and receipt units so selling stock does not inflate the per-unit cost.
 
+Expenses can also be linked to a stock item and explicitly included in its landed unit cost. Historical expenses remain unchanged, and general operating expenses remain available in the main expense ledger. A Monzo Developer API configuration record and idempotent import fields are prepared, but OAuth and transaction syncing are not enabled until an authorised adult creates a Monzo client and server-side credentials are configured; see `docs/MONZO_INTEGRATION.md`.
+
 ## Stage 1 checks
 
 Run the dependency-free repository checks with `node --test tests/*.test.mjs` and JavaScript syntax checks with `node --check analysis-tools.js`, `node --check toolkit.js` and `node --check settings.js`. The SQL integration tests in `supabase/tests/` must be run only against a disposable local or branch database after applying all migrations.
