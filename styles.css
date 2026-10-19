@@ -36,3 +36,126 @@
 @media(max-width:980px){.calculator-layout{grid-template-columns:1fr}.calculator-results{position:static}}
 @media(max-width:700px){.analysis-controls{align-items:flex-start;flex-direction:column;width:100%}.analysis-controls label{width:100%}.spending-metrics{grid-template-columns:1fr}.calculator-card,.calculator-results{padding:16px}.calculator-grid{grid-template-columns:1fr}.field-suffix{margin:-8px 0 16px}.calculator-hero strong{font-size:38px}}
 .landed-cost-option{background:#f1f5ef;border-radius:9px;padding:13px 15px;margin:0 0 16px}.landed-cost-option input{flex:0 0 auto}
+
+/* Kurionyx banking-app interface */
+.toolkit-page{
+  --bank-ink:#142033;
+  --bank-ink-soft:#203047;
+  --bank-coral:#ff5a67;
+  --bank-coral-dark:#e94452;
+  --bank-mint:#c9f7df;
+  --bank-blue:#dceaff;
+  --bank-bg:#f4f5f7;
+  --bank-card:#fff;
+  --bank-border:#e5e7eb;
+  background:var(--bank-bg);
+  color:var(--bank-ink);
+}
+.toolkit-page .toolkit{grid-template-columns:224px minmax(0,1fr);background:var(--bank-bg)}
+.toolkit-page .toolkit aside{background:var(--bank-ink);padding:26px 16px 20px;box-shadow:12px 0 40px #14203312;z-index:20}
+.toolkit-page .toolkit-logo{width:48px;height:48px;border-radius:17px;background:var(--bank-coral);color:white;box-shadow:0 10px 25px #ff5a6740}
+.toolkit-page .toolkit aside>nav{gap:5px;margin-top:34px}
+.toolkit-page .tool-nav{min-height:48px;border-radius:14px;padding:12px 14px;color:#aeb8c7;align-items:center;font-weight:600;transition:.18s ease}
+.toolkit-page .tool-nav:hover{background:#ffffff0d;color:white;transform:translateX(2px)}
+.toolkit-page .tool-nav.active{background:white;color:var(--bank-ink);box-shadow:0 10px 30px #050a122e}
+.toolkit-page .public-return{margin-top:auto;color:#aeb8c7}
+.toolkit-page .tool-main{padding:30px clamp(24px,4vw,62px) 60px;max-width:1600px;width:100%;margin-inline:auto}
+.toolkit-page .tool-main>header{min-height:78px;padding:0 0 22px;border-color:var(--bank-border);position:relative}
+.toolkit-page .tool-main>header h1{font-size:36px;color:var(--bank-ink);letter-spacing:-.055em}
+.toolkit-page .tool-main header p{color:#8a92a0;font-weight:700}
+.toolkit-page .status-pill{border:0;background:white;box-shadow:0 5px 18px #1720330b;padding:10px 14px}
+.toolkit-page .status-pill.connected i{background:#23b26d}
+.toolkit-page .sign-out{border:0;background:#e9ebef;color:var(--bank-ink);font-weight:700;padding:10px 15px}
+.toolkit-page .tool-view{padding-top:28px}
+.toolkit-page .dashboard-title h2,.toolkit-page .section-tool-head h2{color:var(--bank-ink);font-size:30px}
+.toolkit-page .dashboard-title>div>p,.toolkit-page .section-tool-head>div>p,.toolkit-page .card-heading p{color:#9298a4;font-weight:700}
+.toolkit-page .button{border-radius:15px;min-height:46px;padding-inline:20px;transition:transform .16s ease,box-shadow .16s ease}
+.toolkit-page .button:hover{transform:translateY(-1px)}
+.toolkit-page .button.primary,.toolkit-page .primary{background:var(--bank-coral);color:white;box-shadow:0 10px 22px #ff5a6728}
+.toolkit-page .button.primary:hover{background:var(--bank-coral-dark)}
+.toolkit-page .button.secondary{border:0;background:#e9ebef;color:var(--bank-ink)}
+.toolkit-page .metric-grid{gap:14px}
+.toolkit-page .metric-grid article,.toolkit-page .dashboard-grid article,.toolkit-page .insight-grid>article,.toolkit-page .integration-grid article,.toolkit-page .shipping-columns>article,.toolkit-page .calculator-card,.toolkit-page .calculator-results,.toolkit-page .settings-section{border:0;border-radius:22px;box-shadow:0 8px 30px #1720330a}
+.toolkit-page .metric-grid article{padding:22px;background:var(--bank-card);min-height:145px;display:flex;flex-direction:column}
+.toolkit-page .metric-grid article:first-child{background:var(--bank-ink);color:white;box-shadow:0 16px 35px #14203330}
+.toolkit-page .metric-grid article:first-child p,.toolkit-page .metric-grid article:first-child span{color:#b8c3d2}
+.toolkit-page .metric-grid .accent-metric{background:var(--bank-coral);color:white}
+.toolkit-page .metric-grid .accent-metric p,.toolkit-page .metric-grid .accent-metric span{color:#ffe5e8}
+.toolkit-page .metric-grid p{font-size:12px;font-weight:600}
+.toolkit-page .metric-grid strong{font-size:30px;margin:auto 0 5px;letter-spacing:-.045em}
+.toolkit-page .insight-grid,.toolkit-page .dashboard-grid{gap:14px}
+.toolkit-page .insight-grid>article,.toolkit-page .dashboard-grid article{padding:24px}
+.toolkit-page .donut-chart:after{background:white}
+.toolkit-page .flow-summary>div{border-radius:16px;background:#f4f6f8}
+.toolkit-page .flow-icon.incoming{background:var(--bank-mint);color:#087343}
+.toolkit-page .flow-icon.outgoing{background:#ffe0e3;color:#b62d3a}
+.toolkit-page .table-wrap{border:0;border-radius:20px;box-shadow:0 8px 30px #1720330a;background:white}
+.toolkit-page table{border-collapse:separate;border-spacing:0}
+.toolkit-page th{background:#fafafa;color:#8d94a0;font-weight:700;padding-block:17px}
+.toolkit-page td{padding-block:17px;border-color:#eff0f2}
+.toolkit-page tbody tr{transition:background .15s ease}
+.toolkit-page tbody tr:hover{background:#fafbfc}
+.toolkit-page .row-actions button{min-height:34px;border:0;border-radius:11px;background:#eef0f3;color:var(--bank-ink);font-weight:650}
+.toolkit-page .row-actions .delete-row{background:#fff0f1;color:#c73342;padding-inline:10px}
+.toolkit-page .category-chip{background:#edf1f5;color:#4d5869}
+.toolkit-page .status-unverified{background:#fff2cc;color:#765609}
+.toolkit-page .status-verified{background:#dcf7e8;color:#087343}
+.toolkit-page .status-demonstration{background:#eee8fa;color:#6848a0}
+.toolkit-page input,.toolkit-page select,.toolkit-page textarea{border:1px solid #e0e3e7;border-radius:13px;background:#f8f9fa;min-height:46px;transition:border-color .15s ease,box-shadow .15s ease}
+.toolkit-page input:focus,.toolkit-page select:focus,.toolkit-page textarea:focus{outline:0;border-color:var(--bank-coral);box-shadow:0 0 0 4px #ff5a6717;background:white}
+.toolkit-page dialog{border:0;border-radius:24px;box-shadow:0 25px 90px #10182738}
+.toolkit-page dialog::backdrop{background:#10182799;backdrop-filter:blur(4px)}
+.toolkit-page .settings-nav{background:var(--bank-ink);border-radius:20px;padding:12px}
+.toolkit-page .settings-nav button{border-radius:12px}
+.toolkit-page .settings-nav button.active{background:white;color:var(--bank-ink)}
+.toolkit-page .calculator-results{background:var(--bank-ink)}
+.toolkit-page .cost-preview,.toolkit-page .landed-cost-option{background:#f1f6f4;border-color:#28ba77}
+
+@media(max-width:800px){
+  .toolkit-page{overflow:auto;background:#f4f5f7}
+  .toolkit-page .toolkit.toolkit-standalone{display:block;position:relative;padding-bottom:82px;min-height:100dvh}
+  .toolkit-page .toolkit aside{position:fixed;z-index:100;left:0;right:0;bottom:0;top:auto;width:100%;height:76px;padding:7px 8px max(7px,env(safe-area-inset-bottom));display:block;background:#fffffff4;border-top:1px solid #e4e6ea;box-shadow:0 -10px 35px #17203314;backdrop-filter:blur(18px)}
+  .toolkit-page .toolkit-logo,.toolkit-page .public-return{display:none}
+  .toolkit-page .toolkit aside>nav{display:flex;gap:3px;margin:0;overflow-x:auto;scrollbar-width:none;height:100%;align-items:center;scroll-snap-type:x proximity}
+  .toolkit-page .toolkit aside>nav::-webkit-scrollbar{display:none}
+  .toolkit-page .tool-nav{flex:1 0 67px;min-width:67px;height:60px;min-height:60px;padding:7px 5px;display:flex;flex-direction:column;justify-content:center;gap:3px;border-radius:13px;color:#747d8c;text-align:center;font-size:18px;scroll-snap-align:start}
+  .toolkit-page .tool-nav span{display:block;font-size:9px;line-height:1.1;font-weight:700}
+  .toolkit-page .tool-nav:hover{transform:none;background:transparent;color:#747d8c}
+  .toolkit-page .tool-nav.active{background:#ffe8ea;color:#c53240;box-shadow:none}
+  .toolkit-page .tool-main{padding:16px 16px 28px;max-width:none}
+  .toolkit-page .tool-main>header{position:sticky;z-index:40;top:0;margin:0 -16px;padding:12px 16px 15px;background:#f4f5f7ec;backdrop-filter:blur(18px);min-height:68px}
+  .toolkit-page .tool-main>header>div:first-child p{display:none}
+  .toolkit-page .tool-main>header h1{font-size:30px;margin:0}
+  .toolkit-page .tool-account{gap:7px}
+  .toolkit-page .status-pill,.toolkit-page .account-summary{display:none}
+  .toolkit-page .sign-out{width:39px;height:39px;padding:0;font-size:0;border-radius:50%}
+  .toolkit-page .sign-out:after{content:'↗';font-size:17px}
+  .toolkit-page .tool-view{padding-top:19px}
+  .toolkit-page .dashboard-title{margin-bottom:18px;gap:16px}
+  .toolkit-page .dashboard-title h2,.toolkit-page .section-tool-head h2{font-size:27px}
+  .toolkit-page .quick-actions{display:grid;grid-template-columns:repeat(3,1fr);width:100%;gap:8px}
+  .toolkit-page .quick-actions .button{min-width:0;padding:11px 7px;font-size:11px;min-height:48px}
+  .toolkit-page .metric-grid-six{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-inline:-16px;padding:0 16px 9px;scrollbar-width:none}
+  .toolkit-page .metric-grid-six::-webkit-scrollbar{display:none}
+  .toolkit-page .metric-grid-six article{flex:0 0 78vw;max-width:330px;min-height:180px;scroll-snap-align:start;padding:24px}
+  .toolkit-page .metric-grid-six strong{font-size:38px}
+  .toolkit-page .insight-grid,.toolkit-page .dashboard-grid{margin-top:12px;gap:12px}
+  .toolkit-page .insight-grid>article,.toolkit-page .dashboard-grid article{padding:19px;border-radius:20px}
+  .toolkit-page .pie-layout{padding-top:18px}
+  .toolkit-page .section-tool-head{display:grid;gap:15px;margin-bottom:17px}
+  .toolkit-page .section-tool-head .button{width:100%}
+  .toolkit-page .table-wrap{border-radius:18px;margin-inline:-2px;max-width:calc(100vw - 28px)}
+  .toolkit-page th,.toolkit-page td{padding:14px 15px}
+  .toolkit-page .row-actions{min-width:140px}
+  .toolkit-page .shipping-columns>article,.toolkit-page .calculator-card,.toolkit-page .calculator-results,.toolkit-page .settings-section{border-radius:20px}
+  .toolkit-page dialog{width:calc(100% - 20px);max-width:none;margin:auto 10px 10px;border-radius:24px 24px 18px 18px;padding:20px;max-height:90dvh}
+  .toolkit-page dialog[open]{position:fixed;inset:auto 0 0}
+}
+
+@media(min-width:801px) and (max-width:1150px){
+  .toolkit-page .toolkit{grid-template-columns:86px minmax(0,1fr)}
+  .toolkit-page .toolkit aside{padding-inline:12px}
+  .toolkit-page .toolkit-logo{margin-inline:auto}
+  .toolkit-page .tool-nav{justify-content:center;font-size:18px;padding-inline:8px}
+  .toolkit-page .tool-nav span{display:none}
+}
