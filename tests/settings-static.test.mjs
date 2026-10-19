@@ -45,9 +45,9 @@ test('settings interface includes all requested sections', () => {
   assert.match(toolkit, /data-panel="settings"/);
 });
 
-test('team administration and integrations are honest future functionality', () => {
+test('team administration remains honest while integrations use server-side controls', () => {
   assert.match(settings, /Invitations, account creation and role changes are not available/i);
-  assert.match(settings, /not working connections/i);
+  assert.match(settings, /Credentials and bank tokens remain server-side/i);
   assert.doesNotMatch(settings, /service_role|secret_key|api_key/i);
 });
 

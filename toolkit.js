@@ -65,7 +65,7 @@ async function loadWorkspaceData() {
   const [stockResult, expenseResult, salesResult, shipmentResult, movementResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
-    supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, sold_at, created_at').order('sold_at', { ascending: false }),
+    supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at').order('sold_at', { ascending: false }),
     supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200)
   ]);
@@ -90,7 +90,7 @@ async function loadWorkspaceData() {
   records.sales = (salesResult.data || []).map(item => ({
     id: item.id, stockItemId: item.stock_item_id, units: Number(item.units), unitSalePrice: Number(item.unit_sale_price),
     marketplace: item.marketplace, marketplaceFees: Number(item.marketplace_fees), notes: item.notes, dataStatus: item.data_status,
-    soldAt: item.sold_at, createdAt: item.created_at
+    archivedAt: item.archived_at, archiveReason: item.archive_reason, soldAt: item.sold_at, createdAt: item.created_at
   }));
   records.shipments = (shipmentResult.data || []).map(item => ({
     id: item.id, direction: item.direction, status: item.status, itemName: item.item_name, category: item.category,
@@ -116,7 +116,7 @@ function currentProductCost(item, confirmedOnly = false) {
 
 function renderDashboard() {
   const confirmedStock = records.stock.filter(item => item.dataStatus === 'verified' && !item.archivedAt);
-  const confirmedSales = records.sales.filter(item => item.dataStatus === 'verified');
+  const confirmedSales = records.sales.filter(item => item.dataStatus === 'verified' && !item.archivedAt);
   const confirmedShipments = records.shipments.filter(item => item.dataStatus === 'verified' && !item.archivedAt);
   const totalUnits = confirmedStock.reduce((sum, item) => sum + item.units, 0);
   const inventoryCost = confirmedStock.reduce((sum, item) => sum + currentProductCost(item, true), 0);
@@ -241,9 +241,10 @@ function renderMovements() {
 }
 
 function renderSales() {
-  $('#sales-table').innerHTML = records.sales.length
-    ? records.sales.map(sale => { const item = stockById(sale.stockItemId); return `<tr><td>${shortDate(sale.soldAt)}</td><td><strong>${esc(item?.product || 'Archived stock item')}</strong><small class="cell-detail">${esc(item?.sku || '')}</small></td><td>${esc(sale.marketplace)}</td><td>${number(sale.units)}</td><td>${money(sale.units * sale.unitSalePrice)}</td><td>${money(sale.marketplaceFees)}</td><td><span class="data-status status-${esc(sale.dataStatus)}">${esc(sale.dataStatus)}</span><button class="review-status" data-classify-record="stock_sale" data-record-id="${sale.id}" data-current-status="${esc(sale.dataStatus)}">Review</button></td><td class="notes-cell">${esc(sale.notes || '—')}</td></tr>`; }).join('')
-    : '<tr><td colspan="8" class="empty">No sales recorded yet. Marking an item sold will add it here and reduce its available stock.</td></tr>';
+  const activeSales = records.sales.filter(sale => !sale.archivedAt);
+  $('#sales-table').innerHTML = activeSales.length
+    ? activeSales.map(sale => { const item = stockById(sale.stockItemId); return `<tr><td>${shortDate(sale.soldAt)}</td><td><strong>${esc(item?.product || 'Archived stock item')}</strong><small class="cell-detail">${esc(item?.sku || '')}</small></td><td>${esc(sale.marketplace)}</td><td>${number(sale.units)}</td><td>${money(sale.units * sale.unitSalePrice)}</td><td>${money(sale.marketplaceFees)}</td><td><span class="data-status status-${esc(sale.dataStatus)}">${esc(sale.dataStatus)}</span><button class="review-status" data-classify-record="stock_sale" data-record-id="${sale.id}" data-current-status="${esc(sale.dataStatus)}">Review</button></td><td class="notes-cell">${esc(sale.notes || '—')}</td><td><button class="delete-row" data-void-sale="${sale.id}">Remove</button></td></tr>`; }).join('')
+    : '<tr><td colspan="9" class="empty">No sales recorded yet. Marking an item sold will add it here and reduce its available stock.</td></tr>';
 }
 
 function shipmentCard(item) {
@@ -293,6 +294,7 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-archive-stock]').forEach(button => button.onclick = () => archiveStock(button.dataset.archiveStock));
   document.querySelectorAll('[data-edit-shipment]').forEach(button => button.onclick = () => openShipment(records.shipments.find(item => String(item.id) === button.dataset.editShipment)));
   document.querySelectorAll('[data-archive-record]').forEach(button => button.onclick = () => archiveBusinessRecord(button.dataset.archiveRecord, button.dataset.recordId));
+  document.querySelectorAll('[data-void-sale]').forEach(button => button.onclick = () => voidSale(button.dataset.voidSale));
   document.querySelectorAll('[data-shipment-status]').forEach(button => button.onclick = () => updateShipmentStatus(button.dataset.shipmentStatus, button.dataset.nextStatus));
   document.querySelectorAll('[data-classify-record]').forEach(button => button.onclick = () => classifyRecord(button.dataset.classifyRecord, button.dataset.recordId, button.dataset.currentStatus));
 }
@@ -592,6 +594,29 @@ async function archiveBusinessRecord(recordType, recordId) {
   await loadWorkspaceData();
   setStatus('Cloud data connected', 'connected');
   showMessage('Record archived. Its history has been preserved.', 'success');
+}
+
+async function voidSale(recordId) {
+  const reason = window.prompt('Why is this sale being removed? Its stock will be restored.');
+  if (reason === null) return;
+  if (reason.trim().length < 3) {
+    showMessage('Enter a removal reason of at least 3 characters.', 'error');
+    return;
+  }
+  if (!window.confirm('Remove this sale and restore its units to available stock?')) return;
+  setStatus('Saving changes');
+  const { error } = await supabase.rpc('void_stock_sale', {
+    p_sale_id: Number(recordId),
+    p_reason: reason.trim()
+  });
+  if (error) {
+    setStatus('Save failed', 'error');
+    showMessage(error.message, 'error');
+    return;
+  }
+  await loadWorkspaceData();
+  setStatus('Cloud data connected', 'connected');
+  showMessage('Sale removed and its stock restored. History has been preserved.', 'success');
 }
 
 async function signOut() {
