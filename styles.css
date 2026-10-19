@@ -152,7 +152,7 @@
   .toolkit-page dialog[open]{position:fixed;inset:auto 0 0}
 }
 
-@media(min-width:801px) and (max-width:1150px){
+@media(min-width:801px) and (max-width:1000px){
   .toolkit-page .toolkit{grid-template-columns:86px minmax(0,1fr)}
   .toolkit-page .toolkit aside{padding-inline:12px}
   .toolkit-page .toolkit-logo{margin-inline:auto}
