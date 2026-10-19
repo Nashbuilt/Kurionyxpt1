@@ -5,9 +5,11 @@ import { readFile } from 'node:fs/promises';
 const migrationPath = new URL('../supabase/migrations/202610170001_stage1_inventory_integrity.sql', import.meta.url);
 const toolkitPath = new URL('../toolkit.js', import.meta.url);
 const htmlPath = new URL('../toolkit.html', import.meta.url);
+const removalMigrationPath = new URL('../supabase/migrations/20261019122200_remove_stock_from_active_records.sql', import.meta.url);
 
-const [migration, toolkit, html] = await Promise.all([
+const [migration, removalMigration, toolkit, html] = await Promise.all([
   readFile(migrationPath, 'utf8'),
+  readFile(removalMigrationPath, 'utf8'),
   readFile(toolkitPath, 'utf8'),
   readFile(htmlPath, 'utf8')
 ]);
@@ -39,6 +41,15 @@ test('business record deletion is replaced by reasoned archiving', () => {
   assert.match(migration, /revoke delete on table public\.shipments from authenticated/i);
   assert.match(migration, /function public\.archive_business_record/i);
   assert.doesNotMatch(toolkit, /\.delete\(/);
+});
+
+test('stock can be removed from active records without deleting history', () => {
+  assert.match(removalMigration, /'adjustment'[\s\S]*-current_units/i);
+  assert.match(removalMigration, /Removed from active records/i);
+  assert.match(removalMigration, /member\.user_id = auth\.uid\(\)/i);
+  assert.doesNotMatch(removalMigration, /delete\s+from\s+public\.stock_items/i);
+  assert.match(toolkit, /data-archive-stock="\$\{item\.id\}">Remove</i);
+  assert.doesNotMatch(toolkit, /Reduce stock to zero before archiving/i);
 });
 
 test('manual changes require a reason and exclude sale movements', () => {

@@ -183,7 +183,7 @@ function renderCategoryChart(totalUnits) {
 function renderStock() {
   const activeStock = records.stock.filter(item => !item.archivedAt);
   $('#stock-table').innerHTML = activeStock.length
-    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements, records.expenses); const basis = purchasedUnitsFor(item.id, records.movements, item.units); return `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td>${money(currentProductCost(item))}</td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-stock-expense="${item.id}">Add expense</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}" ${item.units !== 0 ? 'disabled title="Reduce stock to zero before archiving"' : ''}>Archive</button></div></td></tr>`; }).join('')
+    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements, records.expenses); const basis = purchasedUnitsFor(item.id, records.movements, item.units); return `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td>${money(currentProductCost(item))}</td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-stock-expense="${item.id}">Add expense</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}">Remove</button></div></td></tr>`; }).join('')
     : '<tr><td colspan="9" class="empty">No active stock records yet. Use “Add stock item” to create the first one.</td></tr>';
 
   const stockExpenses = records.expenses.filter(item => item.stockItemId && !item.archivedAt);
@@ -525,10 +525,14 @@ async function updateShipmentStatus(id, status) {
 }
 
 async function archiveStock(id) {
-  const reason = window.prompt('Why is this zero-balance stock item being archived?');
+  const item = stockById(id);
+  const remaining = Number(item?.units || 0);
+  const reason = window.prompt(remaining > 0
+    ? `Remove this item from active records? Its remaining ${number(remaining)} units will be recorded as a removal adjustment. Enter a reason:`
+    : 'Remove this item from active records? Enter a reason:');
   if (reason === null) return;
   if (reason.trim().length < 3) {
-    showMessage('Enter an archive reason of at least 3 characters.', 'error');
+    showMessage('Enter a removal reason of at least 3 characters.', 'error');
     return;
   }
   setStatus('Saving changes');
@@ -540,7 +544,7 @@ async function archiveStock(id) {
   }
   await loadWorkspaceData();
   setStatus('Cloud data connected', 'connected');
-  showMessage('Stock item archived. Its history has been preserved.', 'success');
+  showMessage('Stock item removed from active records. Its history has been preserved.', 'success');
 }
 
 async function classifyRecord(recordType, recordId, currentStatus) {
