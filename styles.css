@@ -135,9 +135,9 @@
   .toolkit-page .dashboard-title h2,.toolkit-page .section-tool-head h2{font-size:27px}
   .toolkit-page .quick-actions{display:grid;grid-template-columns:repeat(3,1fr);width:100%;gap:8px}
   .toolkit-page .quick-actions .button{min-width:0;padding:11px 7px;font-size:11px;min-height:48px}
-  .toolkit-page .metric-grid-six{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-inline:-16px;padding:0 16px 9px;scrollbar-width:none}
+  .toolkit-page .metric-grid-six{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:max(16px,calc((100vw - min(78vw,330px))/2));gap:12px;margin-inline:-16px;padding:0 max(16px,calc((100vw - min(78vw,330px))/2)) 9px;scrollbar-width:none}
   .toolkit-page .metric-grid-six::-webkit-scrollbar{display:none}
-  .toolkit-page .metric-grid-six article{flex:0 0 78vw;max-width:330px;min-height:180px;scroll-snap-align:start;padding:24px}
+  .toolkit-page .metric-grid-six article{flex:0 0 78vw;max-width:330px;min-height:180px;scroll-snap-align:center;padding:24px;text-align:center;align-items:center}
   .toolkit-page .metric-grid-six strong{font-size:38px}
   .toolkit-page .insight-grid,.toolkit-page .dashboard-grid{margin-top:12px;gap:12px}
   .toolkit-page .insight-grid>article,.toolkit-page .dashboard-grid article{padding:19px;border-radius:20px}
