@@ -60,7 +60,12 @@ Deno.serve(async req => {
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
   const { data: { user } } = await userClient.auth.getUser();
   if (!user) return json({ error: 'Authentication required.' }, 401);
-  const { data: membership } = await admin.from('workspace_members').select('workspace_id, role').eq('user_id', user.id).maybeSingle();
+  const { data: membership, error: membershipError } = await userClient
+    .from('workspace_members')
+    .select('workspace_id, role')
+    .limit(1)
+    .maybeSingle();
+  if (membershipError) return json({ error: 'Could not verify workspace access.' }, 500);
   if (!membership) return json({ error: 'Workspace access required.' }, 403);
 
   const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};

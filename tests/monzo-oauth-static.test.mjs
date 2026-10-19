@@ -33,11 +33,14 @@ test('callback refuses to connect a personal account', () => {
 test('public callback performs its own authentication checks', () => {
   assert.match(config, /\[functions\.monzo-oauth-callback\][\s\S]*verify_jwt = false/);
   assert.match(edgeFunction, /auth\.getUser\(\)/);
+  assert.match(edgeFunction, /userClient[\s\S]*\.from\('workspace_members'\)/);
+  assert.match(edgeFunction, /membershipError/);
   assert.match(edgeFunction, /crypto\.randomUUID\(\)/);
 });
 
 test('settings provides a real owner-gated Monzo connection control', () => {
   assert.match(settings, /data-connect-monzo/);
   assert.match(settings, /functions\.invoke\('monzo-oauth-callback'/);
+  assert.match(settings, /error\?\.context[\s\S]*error\.context\.json/);
   assert.match(settings, /state\.isOwner \? '' : 'disabled'/);
 });

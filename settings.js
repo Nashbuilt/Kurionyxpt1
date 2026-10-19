@@ -212,9 +212,18 @@ async function connectMonzo(button) {
   button.textContent = 'Opening Monzo…';
   const { data, error } = await state.supabase.functions.invoke('monzo-oauth-callback', { body: { action: 'start' } });
   if (error || !data?.url) {
+    let functionMessage = data?.error;
+    if (error?.context && typeof error.context.json === 'function') {
+      try {
+        const response = await error.context.json();
+        functionMessage = response?.error || functionMessage;
+      } catch {
+        // Fall back to the SDK message when the function did not return JSON.
+      }
+    }
     button.disabled = false;
     button.textContent = 'Connect Monzo';
-    state.notify(error?.message || data?.error || 'Could not start the Monzo connection.', 'error');
+    state.notify(functionMessage || error?.message || 'Could not start the Monzo connection.', 'error');
     return;
   }
   window.location.assign(data.url);
