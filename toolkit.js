@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { initSettings } from './settings.js';
+import { calculateProfitability, groupExpenses, landedUnitCost, purchasedUnitsFor } from './analysis-tools.js';
 
 const supabase = createClient(
   'https://wszgmnngwnhtavuxqqyk.supabase.co',
@@ -107,7 +108,7 @@ function stockById(id) {
 }
 
 function currentProductCost(item) {
-  return item.units * item.unitCost;
+  return item.units * landedUnitCost(item, records.movements);
 }
 
 function renderDashboard() {
@@ -179,8 +180,50 @@ function renderCategoryChart(totalUnits) {
 function renderStock() {
   const activeStock = records.stock.filter(item => !item.archivedAt);
   $('#stock-table').innerHTML = activeStock.length
-    ? activeStock.map(item => `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td>${money(currentProductCost(item))}<small class="cell-detail">${money(item.unitCost)} each · ${money(item.shippingPaid + item.otherFees)} batch costs recorded</small></td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}" ${item.units !== 0 ? 'disabled title="Reduce stock to zero before archiving"' : ''}>Archive</button></div></td></tr>`).join('')
-    : '<tr><td colspan="8" class="empty">No active stock records yet. Use “Add stock item” to create the first one.</td></tr>';
+    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements); const basis = purchasedUnitsFor(item.id, records.movements, item.units); return `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td>${money(currentProductCost(item))}</td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}" ${item.units !== 0 ? 'disabled title="Reduce stock to zero before archiving"' : ''}>Archive</button></div></td></tr>`; }).join('')
+    : '<tr><td colspan="9" class="empty">No active stock records yet. Use “Add stock item” to create the first one.</td></tr>';
+}
+
+function renderSpending() {
+  const groups = groupExpenses(records.expenses, $('#spending-period').value, $('#spending-confirmed-only').checked);
+  const total = groups.reduce((sum, group) => sum + group.total, 0);
+  const count = groups.reduce((sum, group) => sum + group.count, 0);
+  const highest = groups.reduce((best, group) => !best || group.total > best.total ? group : best, null);
+  $('#spending-total').textContent = money(total);
+  $('#spending-record-count').textContent = `${number(count)} expense ${count === 1 ? 'record' : 'records'}`;
+  $('#spending-average').textContent = money(groups.length ? total / groups.length : 0);
+  $('#spending-period-count').textContent = `${number(groups.length)} ${groups.length === 1 ? 'period' : 'periods'}`;
+  $('#spending-highest').textContent = money(highest?.total || 0);
+  $('#spending-highest-label').textContent = highest?.label || 'No records';
+  $('#spending-table').innerHTML = groups.length
+    ? groups.map(group => `<tr><td><strong>${esc(group.label)}</strong></td><td>${number(group.count)}</td><td>${esc(Object.entries(group.categories).sort((a, b) => b[1] - a[1]).map(([category, value]) => `${category}: ${money(value)}`).join(' · '))}</td><td><strong>${money(group.total)}</strong></td></tr>`).join('')
+    : '<tr><td colspan="4" class="empty">No matching expense records.</td></tr>';
+}
+
+function renderCalculator() {
+  const result = calculateProfitability(Object.fromEntries(new FormData($('#profit-calculator'))));
+  $('#calculator-verdict').textContent = result.verdict.label;
+  $('#calculator-verdict').className = `calculator-verdict verdict-${result.verdict.state}`;
+  $('#calc-profit').textContent = money(result.profit);
+  $('#calc-unit-profit').textContent = `${money(result.profit / result.units)} per unit`;
+  $('#calc-revenue').textContent = money(result.revenue);
+  $('#calc-total-cost').textContent = money(result.totalCost);
+  $('#calc-product-cost').textContent = money(result.productCost);
+  $('#calc-shipping-cost').textContent = money(result.shippingCost);
+  $('#calc-platform-fees').textContent = money(result.platformFixed + result.platformPercentage);
+  $('#calc-other-cost').textContent = money(result.otherCost);
+  $('#calc-margin').textContent = `${result.margin.toFixed(1)}%`;
+  $('#calc-roi').textContent = `${result.roi.toFixed(1)}%`;
+  $('#calc-break-even').textContent = Number.isFinite(result.breakEvenUnitPrice) ? `${money(result.breakEvenUnitPrice)} / unit` : 'Unavailable';
+}
+
+function updateStockCostPreview() {
+  const form = $('#stock-form');
+  const existing = stockById(form.elements.id.value);
+  const units = existing ? purchasedUnitsFor(existing.id, records.movements, existing.units) : Number(form.elements.initialUnits.value);
+  const preview = landedUnitCost({ id: existing?.id, units, unitCost: form.elements.unitCost.value, shippingPaid: form.elements.shippingPaid.value, otherFees: form.elements.otherFees.value }, existing ? records.movements : []);
+  $('#stock-cost-preview strong').textContent = money(preview);
+  $('#stock-cost-preview small').textContent = units > 0 ? `Based on ${number(units)} purchased units.` : 'Enter received units to allocate batch costs.';
 }
 
 function renderMovements() {
@@ -242,6 +285,8 @@ function render() {
   renderSales();
   renderShipments();
   renderExpenses();
+  renderSpending();
+  renderCalculator();
   renderSaleOptions();
   bindRenderedActions();
 }
@@ -267,6 +312,7 @@ function openStock(item = null) {
   form.elements.notes.value = item?.notes || '';
   form.elements.dataStatus.value = item?.dataStatus || 'unverified';
   $('#stock-modal-title').textContent = item ? 'Update stock details' : 'Add stock item';
+  updateStockCostPreview();
   prepareDialog(dialogs.stock);
 }
 
@@ -534,6 +580,11 @@ document.querySelectorAll('[data-open-expense]').forEach(button => button.addEve
   prepareDialog(dialogs.expense);
 }));
 document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+$('#profit-calculator').addEventListener('input', renderCalculator);
+$('#profit-calculator').addEventListener('change', renderCalculator);
+$('#spending-period').addEventListener('change', renderSpending);
+$('#spending-confirmed-only').addEventListener('change', renderSpending);
+['initialUnits', 'unitCost', 'shippingPaid', 'otherFees'].forEach(name => $('#stock-form').elements[name].addEventListener('input', updateStockCostPreview));
 $('#sign-out').addEventListener('click', signOut);
 $('#error-sign-out').addEventListener('click', signOut);
 

@@ -23,9 +23,11 @@ The database-backed Settings foundation is in `supabase/migrations/202610170002_
 
 The dashboard groups variations and colours by their category. Confirmed KPIs include only records explicitly marked as verified. Recording a sale is an atomic database action: the sales record and its inventory movement are saved only when enough units exist, and the matching stock quantity is reduced in the same transaction.
 
+The internal toolkit also includes a browser-local profitability calculator that accepts mixed per-unit and whole-batch inputs, plus a spending view that groups the existing expense ledger by day, week or month. Stock landed unit cost allocates recorded supplier shipping and product fees across opening-balance and receipt units so selling stock does not inflate the per-unit cost.
+
 ## Stage 1 checks
 
-Run the dependency-free repository checks with `node --test tests/stage1-static.test.mjs tests/settings-static.test.mjs` and JavaScript syntax checks with `node --check toolkit.js` and `node --check settings.js`. The SQL integration tests in `supabase/tests/` must be run only against a disposable local or branch database after applying all migrations.
+Run the dependency-free repository checks with `node --test tests/*.test.mjs` and JavaScript syntax checks with `node --check analysis-tools.js`, `node --check toolkit.js` and `node --check settings.js`. The SQL integration tests in `supabase/tests/` must be run only against a disposable local or branch database after applying all migrations.
 
 ## Prototype status
 
