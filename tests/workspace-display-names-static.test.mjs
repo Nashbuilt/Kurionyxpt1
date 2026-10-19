@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [migration, settings] = await Promise.all([
+const [migration, typeFixMigration, settings] = await Promise.all([
   readFile(new URL('../supabase/migrations/20261019113500_workspace_member_display_names.sql', import.meta.url), 'utf8'),
+  readFile(new URL('../supabase/migrations/20261019120851_fix_workspace_member_list_types.sql', import.meta.url), 'utf8'),
   readFile(new URL('../settings.js', import.meta.url), 'utf8')
 ]);
 
@@ -19,7 +20,12 @@ test('team settings prefer display names while retaining account email', () => {
 });
 
 test('member list remains workspace-authorised', () => {
-  assert.match(migration, /current_member\.workspace_id = p_workspace_id/i);
-  assert.match(migration, /current_member\.user_id = auth\.uid\(\)/i);
-  assert.match(migration, /revoke all on function public\.list_workspace_members\(bigint\) from public, anon/i);
+  assert.match(typeFixMigration, /current_member\.workspace_id = p_workspace_id/i);
+  assert.match(typeFixMigration, /current_member\.user_id = auth\.uid\(\)/i);
+  assert.match(typeFixMigration, /revoke all on function public\.list_workspace_members\(bigint\) from public, anon/i);
+});
+
+test('member list explicitly matches hosted Supabase result types', () => {
+  assert.match(typeFixMigration, /coalesce\(account\.email, ''\)::text/i);
+  assert.match(typeFixMigration, /member\.role::text/i);
 });
