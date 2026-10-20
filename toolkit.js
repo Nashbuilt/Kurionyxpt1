@@ -7,7 +7,7 @@ const supabase = createClient(
   'sb_publishable_kqyjZOBwyt0rJGEQao-pgw_uiEO8-Nf'
 );
 
-const records = { stock: [], expenses: [], sales: [], shipments: [], movements: [] };
+const records = { stock: [], expenses: [], sales: [], shipments: [], movements: [], stockImages: [], trackingEvents: [] };
 let workspaceId = null;
 let workspaceRole = null;
 let bankLoaded = false;
@@ -24,7 +24,8 @@ const dialogs = {
   sale: $('#sale-modal'),
   shipment: $('#shipment-modal'),
   expense: $('#expense-modal'),
-  movement: $('#movement-modal')
+  movement: $('#movement-modal'),
+  tracking: $('#tracking-modal')
 };
 
 const money = value => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value) || 0);
@@ -127,15 +128,17 @@ async function loadBankSummary(force = false) {
 }
 
 async function loadWorkspaceData() {
-  const [stockResult, expenseResult, salesResult, shipmentResult, movementResult] = await Promise.all([
+  const [stockResult, expenseResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
     supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at').order('sold_at', { ascending: false }),
-    supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
-    supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200)
+    supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, final_mile_carrier, final_mile_tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
+    supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200),
+    supabase.from('stock_images').select('id, stock_item_id, storage_path, alt_text, sort_order, created_at').order('sort_order').order('created_at'),
+    supabase.from('shipment_tracking_events').select('id, shipment_id, event_status, description, location, occurred_at, source, created_at').order('occurred_at', { ascending: false })
   ]);
 
-  for (const result of [stockResult, expenseResult, salesResult, shipmentResult, movementResult]) {
+  for (const result of [stockResult, expenseResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult]) {
     if (result.error) throw result.error;
   }
 
@@ -160,13 +163,27 @@ async function loadWorkspaceData() {
   records.shipments = (shipmentResult.data || []).map(item => ({
     id: item.id, direction: item.direction, status: item.status, itemName: item.item_name, category: item.category,
     units: Number(item.units), origin: item.origin, destination: item.destination, carrier: item.carrier,
-    trackingNumber: item.tracking_number, shippingCost: Number(item.shipping_cost), expectedDate: item.expected_date,
+    trackingNumber: item.tracking_number, finalMileCarrier: item.final_mile_carrier,
+    finalMileTrackingNumber: item.final_mile_tracking_number, shippingCost: Number(item.shipping_cost), expectedDate: item.expected_date,
     notes: item.notes, dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at
   }));
   records.movements = (movementResult.data || []).map(item => ({
     id: item.id, stockItemId: item.stock_item_id, type: item.movement_type,
     quantityDelta: Number(item.quantity_delta), reason: item.reason,
     dataStatus: item.data_status, occurredAt: item.occurred_at, createdAt: item.created_at
+  }));
+  records.stockImages = (imageResult.data || []).map(item => ({
+    id: item.id, stockItemId: item.stock_item_id, path: item.storage_path,
+    alt: item.alt_text, sortOrder: item.sort_order, createdAt: item.created_at, url: ''
+  }));
+  if (records.stockImages.length) {
+    const { data: signedImages, error: signedImageError } = await supabase.storage.from('stock-images').createSignedUrls(records.stockImages.map(image => image.path), 3600);
+    if (signedImageError) throw signedImageError;
+    signedImages.forEach((signed, index) => { records.stockImages[index].url = signed.signedUrl || ''; });
+  }
+  records.trackingEvents = (trackingResult.data || []).map(item => ({
+    id: item.id, shipmentId: item.shipment_id, status: item.event_status,
+    description: item.description, location: item.location, occurredAt: item.occurred_at, source: item.source
   }));
   render();
 }
@@ -248,7 +265,7 @@ function renderCategoryChart(totalUnits) {
 function renderStock() {
   const activeStock = records.stock.filter(item => !item.archivedAt);
   $('#stock-table').innerHTML = activeStock.length
-    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements, records.expenses); const basis = purchasedUnitsFor(item.id, records.movements, item.units); return `<tr><td><strong>${esc(item.product)}</strong></td><td><span class="category-chip">${esc(item.category)}</span></td><td>${esc(item.sku)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><strong>${number(item.units)}</strong></td><td><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td>${money(currentProductCost(item))}</td><td class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-stock-expense="${item.id}">Add expense</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit details</button><button class="delete-row" data-archive-stock="${item.id}">Remove</button></div></td></tr>`; }).join('')
+    ? activeStock.map(item => { const unitLanded = landedUnitCost(item, records.movements, records.expenses); const basis = purchasedUnitsFor(item.id, records.movements, item.units); const image = records.stockImages.find(photo => String(photo.stockItemId) === String(item.id)); return `<tr><td data-label="Product"><div class="stock-product-cell">${image?.url ? `<img src="${esc(image.url)}" alt="${esc(image.alt || item.product)}" loading="lazy">` : '<span class="stock-image-placeholder" aria-hidden="true">□</span>'}<div><strong>${esc(item.product)}</strong><small class="cell-detail">${records.stockImages.filter(photo => String(photo.stockItemId) === String(item.id)).length || 'No'} photo${records.stockImages.filter(photo => String(photo.stockItemId) === String(item.id)).length === 1 ? '' : 's'}</small></div></div></td><td data-label="Category"><span class="category-chip">${esc(item.category)}</span></td><td data-label="SKU">${esc(item.sku)}</td><td data-label="Status"><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td data-label="Available"><strong>${number(item.units)}</strong></td><td data-label="Landed unit cost"><strong>${money(unitLanded)}</strong><small class="cell-detail">${money(item.unitCost)} product cost + allocated costs across ${number(basis)} purchased units</small></td><td data-label="Stock value">${money(currentProductCost(item))}</td><td data-label="Notes" class="notes-cell">${esc(item.notes || '—')}</td><td><div class="row-actions"><button data-sell-stock="${item.id}" ${item.units < 1 ? 'disabled' : ''}>Mark sold</button><button data-stock-expense="${item.id}">Add expense</button><button data-move-stock="${item.id}">Change stock</button><button data-edit-stock="${item.id}">Edit & photos</button><button class="delete-row" data-archive-stock="${item.id}">Remove</button></div></td></tr>`; }).join('')
     : '<tr><td colspan="9" class="empty">No active stock records yet. Use “Add stock item” to create the first one.</td></tr>';
 
   const stockExpenses = records.expenses.filter(item => item.stockItemId && !item.archivedAt);
@@ -315,7 +332,9 @@ function renderSales() {
 function shipmentCard(item) {
   const statusLabel = item.status.replace('_', ' ');
   const nextStatus = item.status === 'planned' ? 'in_transit' : item.status === 'in_transit' ? 'delivered' : '';
-  return `<div class="shipment-card"><div class="shipment-card-top"><span><span class="status-badge status-${item.status}">${esc(statusLabel)}</span> <span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></span><span>${number(item.units)} units</span></div><h4>${esc(item.itemName)}</h4><p>${esc(item.category)}</p><dl><div><dt>Route</dt><dd>${esc(item.origin || 'Not set')} → ${esc(item.destination || 'Not set')}</dd></div><div><dt>Expected</dt><dd>${shortDate(item.expectedDate)}</dd></div><div><dt>Carrier</dt><dd>${esc(item.carrier || 'Not set')}</dd></div><div><dt>Tracking</dt><dd>${esc(item.trackingNumber || 'Not set')}</dd></div></dl>${item.notes ? `<p class="shipment-notes">${esc(item.notes)}</p>` : ''}<div class="row-actions">${nextStatus ? `<button data-shipment-status="${item.id}" data-next-status="${nextStatus}">${nextStatus === 'in_transit' ? 'Mark in transit' : 'Mark delivered'}</button>` : ''}<button data-edit-shipment="${item.id}">Edit</button><button data-classify-record="shipment" data-record-id="${item.id}" data-current-status="${esc(item.dataStatus)}">Review status</button><button class="delete-row" data-archive-record="shipment" data-record-id="${item.id}">Archive</button></div></div>`;
+  const events = records.trackingEvents.filter(event => String(event.shipmentId) === String(item.id)).slice(0, 4);
+  const tracking = item.finalMileTrackingNumber || item.trackingNumber;
+  return `<div class="shipment-card"><div class="shipment-card-top"><span><span class="status-badge status-${item.status}">${esc(statusLabel)}</span> <span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></span><span>${number(item.units)} units</span></div><h4>${esc(item.itemName)}</h4><p>${esc(item.category)}</p><dl><div><dt>Route</dt><dd>${esc(item.origin || 'Not set')} → ${esc(item.destination || 'Not set')}</dd></div><div><dt>Expected</dt><dd>${shortDate(item.expectedDate)}</dd></div><div><dt>International</dt><dd>${esc(item.carrier || 'Not set')}${item.trackingNumber ? ` · <span class="tracking-number">${esc(item.trackingNumber)}</span>` : ''}</dd></div><div><dt>Final mile</dt><dd>${esc(item.finalMileCarrier || 'Not set')}${item.finalMileTrackingNumber ? ` · <span class="tracking-number">${esc(item.finalMileTrackingNumber)}</span>` : ''}</dd></div></dl><div class="tracking-panel"><div class="tracking-panel-head"><strong>Tracking updates</strong><button data-add-tracking="${item.id}">+ Add update</button></div>${events.length ? `<ol class="tracking-timeline">${events.map((event, index) => `<li class="${index === 0 ? 'latest' : ''}"><i></i><div><strong>${esc(event.status.replaceAll('_', ' '))}</strong><p>${esc(event.description)}</p><small>${event.location ? `${esc(event.location)} · ` : ''}${shortDate(event.occurredAt)}</small></div></li>`).join('')}</ol>` : `<p class="tracking-empty">${tracking ? 'No tracking events saved yet.' : 'Add a tracking number or a manual update.'}</p>`}</div>${item.notes ? `<p class="shipment-notes">${esc(item.notes)}</p>` : ''}<div class="row-actions">${nextStatus ? `<button data-shipment-status="${item.id}" data-next-status="${nextStatus}">${nextStatus === 'in_transit' ? 'Mark in transit' : 'Mark delivered'}</button>` : ''}<button data-edit-shipment="${item.id}">Edit</button><button data-classify-record="shipment" data-record-id="${item.id}" data-current-status="${esc(item.dataStatus)}">Review status</button><button class="delete-row" data-archive-record="shipment" data-record-id="${item.id}">Archive</button></div></div>`;
 }
 
 function renderShipments() {
@@ -358,6 +377,7 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-stock-expense]').forEach(button => button.onclick = () => openExpense(button.dataset.stockExpense));
   document.querySelectorAll('[data-archive-stock]').forEach(button => button.onclick = () => archiveStock(button.dataset.archiveStock));
   document.querySelectorAll('[data-edit-shipment]').forEach(button => button.onclick = () => openShipment(records.shipments.find(item => String(item.id) === button.dataset.editShipment)));
+  document.querySelectorAll('[data-add-tracking]').forEach(button => button.onclick = () => openTracking(records.shipments.find(item => String(item.id) === button.dataset.addTracking)));
   document.querySelectorAll('[data-archive-record]').forEach(button => button.onclick = () => archiveBusinessRecord(button.dataset.archiveRecord, button.dataset.recordId));
   document.querySelectorAll('[data-void-sale]').forEach(button => button.onclick = () => voidSale(button.dataset.voidSale));
   document.querySelectorAll('[data-shipment-status]').forEach(button => button.onclick = () => updateShipmentStatus(button.dataset.shipmentStatus, button.dataset.nextStatus));
@@ -397,6 +417,11 @@ function openStock(item = null) {
   form.elements.otherFees.value = item?.otherFees ?? 0;
   form.elements.notes.value = item?.notes || '';
   form.elements.dataStatus.value = item?.dataStatus || 'unverified';
+  form.elements.images.value = '';
+  const images = item ? records.stockImages.filter(image => String(image.stockItemId) === String(item.id)) : [];
+  $('#stock-image-preview').innerHTML = images.length
+    ? images.map(image => `<figure><img src="${esc(image.url)}" alt="${esc(image.alt || item.product)}"><figcaption>Saved photo</figcaption></figure>`).join('')
+    : '<p>No photos saved yet.</p>';
   $('#stock-modal-title').textContent = item ? 'Update stock details' : 'Add stock item';
   updateStockCostPreview();
   prepareDialog(dialogs.stock);
@@ -433,11 +458,43 @@ function openShipment(item = null) {
   form.elements.destination.value = item?.destination || '';
   form.elements.carrier.value = item?.carrier || '';
   form.elements.trackingNumber.value = item?.trackingNumber || '';
+  form.elements.finalMileCarrier.value = item?.finalMileCarrier || '';
+  form.elements.finalMileTrackingNumber.value = item?.finalMileTrackingNumber || '';
   form.elements.shippingCost.value = item?.shippingCost ?? 0;
   form.elements.dataStatus.value = item?.dataStatus || 'unverified';
   form.elements.notes.value = item?.notes || '';
   $('#shipment-modal-title').textContent = item ? 'Update shipment' : 'Add shipment';
   prepareDialog(dialogs.shipment);
+}
+
+function openTracking(item) {
+  const form = $('#tracking-form');
+  form.reset();
+  form.elements.shipmentId.value = item.id;
+  form.elements.occurredAt.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  $('#tracking-shipment').textContent = `${item.itemName} · ${item.carrier || item.finalMileCarrier || 'carrier not set'}`;
+  prepareDialog(dialogs.tracking);
+}
+
+async function uploadStockImages(stockItemId, productName, files) {
+  const existingCount = records.stockImages.filter(image => String(image.stockItemId) === String(stockItemId)).length;
+  if (existingCount + files.length > 4) throw new Error(`A stock item can have up to 4 photos. It already has ${existingCount}.`);
+  for (const file of files) {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error(`${file.name} is not a supported image type.`);
+    if (file.size > 5 * 1024 * 1024) throw new Error(`${file.name} is larger than 5 MB.`);
+    const extension = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `${workspaceId}/${stockItemId}/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from('stock-images').upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError) throw uploadError;
+    const { error: metadataError } = await supabase.from('stock_images').insert({
+      workspace_id: workspaceId, stock_item_id: Number(stockItemId), storage_path: path,
+      alt_text: productName, sort_order: existingCount
+    });
+    if (metadataError) {
+      await supabase.storage.from('stock-images').remove([path]);
+      throw metadataError;
+    }
+  }
 }
 
 async function saveForm(form, query, successMessage, dialog) {
@@ -477,7 +534,7 @@ $('#stock-form').addEventListener('submit', async event => {
     data_status: String(values.get('dataStatus'))
   };
   const query = id
-    ? supabase.from('stock_items').update(payload).eq('id', id).eq('workspace_id', workspaceId)
+    ? supabase.from('stock_items').update(payload).eq('id', id).eq('workspace_id', workspaceId).select('id').single()
     : supabase.rpc('create_stock_item', {
         p_workspace_id: workspaceId,
         p_product_name: payload.product_name,
@@ -490,7 +547,36 @@ $('#stock-form').addEventListener('submit', async event => {
         p_notes: payload.notes,
         p_data_status: payload.data_status
       });
-  await saveForm(form, query, id ? 'Stock details updated.' : 'Stock item and initial receipt recorded.', dialogs.stock);
+  const button = form.querySelector('[type="submit"]');
+  const message = form.querySelector('[data-form-message]');
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Saving…';
+  message.textContent = '';
+  const { data, error } = await query;
+  if (error) {
+    button.disabled = false;
+    button.textContent = original;
+    message.textContent = error.code === '23505' ? 'That SKU already exists in this workspace.' : error.message;
+    return;
+  }
+  const stockItemId = id || data?.id || data;
+  try {
+    await uploadStockImages(stockItemId, payload.product_name, [...form.elements.images.files]);
+  } catch (imageError) {
+    button.disabled = false;
+    button.textContent = original;
+    message.textContent = `The stock record was saved, but its photo was not: ${imageError.message}`;
+    await loadWorkspaceData();
+    return;
+  }
+  button.disabled = false;
+  button.textContent = original;
+  dialogs.stock.close();
+  setStatus('Refreshing data');
+  await loadWorkspaceData();
+  setStatus('Cloud data connected', 'connected');
+  showMessage(id ? 'Stock details and photos updated.' : 'Stock item, photos and initial receipt recorded.', 'success');
 });
 
 $('#sale-form').addEventListener('submit', async event => {
@@ -547,12 +633,31 @@ $('#shipment-form').addEventListener('submit', async event => {
     destination: String(values.get('destination')).trim(),
     carrier: String(values.get('carrier')).trim(),
     tracking_number: String(values.get('trackingNumber')).trim(),
+    final_mile_carrier: String(values.get('finalMileCarrier')).trim(),
+    final_mile_tracking_number: String(values.get('finalMileTrackingNumber')).trim(),
     shipping_cost: Number(values.get('shippingCost')),
     data_status: String(values.get('dataStatus')),
     notes: String(values.get('notes')).trim()
   };
   const query = id ? supabase.from('shipments').update(payload).eq('id', id).eq('workspace_id', workspaceId) : supabase.from('shipments').insert(payload);
   await saveForm(form, query, id ? 'Shipment updated.' : 'Shipment added.', dialogs.shipment);
+});
+
+$('#tracking-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = new FormData(form);
+  const status = String(values.get('eventStatus'));
+  const query = supabase.from('shipment_tracking_events').insert({
+    workspace_id: workspaceId,
+    shipment_id: Number(values.get('shipmentId')),
+    event_status: status,
+    description: String(values.get('description')).trim(),
+    location: String(values.get('location')).trim(),
+    occurred_at: new Date(String(values.get('occurredAt'))).toISOString(),
+    source: 'manual'
+  });
+  await saveForm(form, query, 'Tracking update added.', dialogs.tracking);
 });
 
 $('#expense-form').addEventListener('submit', async event => {
@@ -704,6 +809,17 @@ $('#expense-form').elements.stockItemId.addEventListener('change', event => {
   if (!event.currentTarget.value) $('#expense-form').elements.includeInLandedCost.checked = false;
 });
 ['initialUnits', 'unitCost', 'shippingPaid', 'otherFees'].forEach(name => $('#stock-form').elements[name].addEventListener('input', updateStockCostPreview));
+$('#stock-form').elements.images.addEventListener('change', event => {
+  const files = [...event.currentTarget.files];
+  if (files.length > 4) {
+    event.currentTarget.value = '';
+    $('#stock-image-preview').innerHTML = '<p class="form-error">Choose no more than 4 photos.</p>';
+    return;
+  }
+  $('#stock-image-preview').innerHTML = files.length
+    ? files.map(file => `<figure><img src="${URL.createObjectURL(file)}" alt="Preview of ${esc(file.name)}"><figcaption>${esc(file.name)}</figcaption></figure>`).join('')
+    : '<p>No new photos selected.</p>';
+});
 $('#sign-out').addEventListener('click', signOut);
 $('#error-sign-out').addEventListener('click', signOut);
 $('#refresh-bank').addEventListener('click', () => loadBankSummary(true));
