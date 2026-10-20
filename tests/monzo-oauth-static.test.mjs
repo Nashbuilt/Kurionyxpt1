@@ -72,6 +72,8 @@ test('settings provides a real owner-gated Monzo connection control', () => {
   assert.match(settings, /functions\.invoke\('monzo-oauth-callback'/);
   assert.match(settings, /error\?\.context[\s\S]*error\.context\.json/);
   assert.match(settings, /state\.isOwner \? '' : 'disabled'/);
+  assert.match(settings, /No further action is required/);
+  assert.doesNotMatch(settings, /Reconnect Monzo/);
 });
 
 test('workspace integrations allow live connection lifecycle states', () => {
