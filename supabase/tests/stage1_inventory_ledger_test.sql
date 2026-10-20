@@ -2,7 +2,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(23);
 
 insert into auth.users (id, email)
 values
@@ -57,6 +57,47 @@ select is((select count(*) from public.inventory_movements where source_type = '
 select throws_ok(
   $$select public.void_stock_sale((select id from public.stock_sales limit 1), 'Second void attempt')$$,
   '42501', null, 'a sale cannot be voided twice'
+);
+
+select public.create_stock_item(
+  (select id from public.workspaces where name = 'Stage 1 test one'),
+  'Archived sale item', 'Tests', 'STAGE1-ARCHIVED', 8, 3.00, 0, 0, '', 'verified'
+);
+insert into public.stock_sales (workspace_id, stock_item_id, units, unit_sale_price, marketplace, data_status)
+select workspace_id, id, 3, 8.00, 'Direct', 'verified'
+from public.stock_items where sku = 'STAGE1-ARCHIVED';
+select public.archive_stock_item(
+  (select id from public.stock_items where sku = 'STAGE1-ARCHIVED'),
+  'No longer stocked'
+);
+select ok(
+  (select archived_at is not null from public.stock_items where sku = 'STAGE1-ARCHIVED'),
+  'stock linked to a sale can be archived'
+);
+select is(
+  (select units from public.stock_items where sku = 'STAGE1-ARCHIVED'),
+  0::bigint,
+  'archiving closes the remaining active balance'
+);
+select public.void_stock_sale(
+  (select id from public.stock_sales where stock_item_id = (select id from public.stock_items where sku = 'STAGE1-ARCHIVED')),
+  'Sale entered by mistake'
+);
+select ok(
+  (select archived_at is null from public.stock_items where sku = 'STAGE1-ARCHIVED'),
+  'voiding the sale reactivates its archived stock item'
+);
+select is(
+  (select units from public.stock_items where sku = 'STAGE1-ARCHIVED'),
+  3::bigint,
+  'voiding restores only the sold units after the prior archive adjustment'
+);
+select is(
+  (select count(*) from public.inventory_movements
+   where source_type = 'stock_sale_void'
+     and stock_item_id = (select id from public.stock_items where sku = 'STAGE1-ARCHIVED')),
+  1::bigint,
+  'archived-stock sale void creates one compensating movement'
 );
 
 select public.record_inventory_movement(

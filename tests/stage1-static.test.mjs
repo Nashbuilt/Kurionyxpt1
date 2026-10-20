@@ -7,11 +7,13 @@ const toolkitPath = new URL('../toolkit.js', import.meta.url);
 const htmlPath = new URL('../toolkit.html', import.meta.url);
 const removalMigrationPath = new URL('../supabase/migrations/20261019122200_remove_stock_from_active_records.sql', import.meta.url);
 const saleVoidMigrationPath = new URL('../supabase/migrations/20261019130000_void_stock_sales.sql', import.meta.url);
+const archivedSaleVoidMigrationPath = new URL('../supabase/migrations/20261020090000_void_sales_for_archived_stock.sql', import.meta.url);
 
-const [migration, removalMigration, saleVoidMigration, toolkit, html] = await Promise.all([
+const [migration, removalMigration, saleVoidMigration, archivedSaleVoidMigration, toolkit, html] = await Promise.all([
   readFile(migrationPath, 'utf8'),
   readFile(removalMigrationPath, 'utf8'),
   readFile(saleVoidMigrationPath, 'utf8'),
+  readFile(archivedSaleVoidMigrationPath, 'utf8'),
   readFile(toolkitPath, 'utf8'),
   readFile(htmlPath, 'utf8')
 ]);
@@ -55,6 +57,16 @@ test('voiding a sale restores stock exactly once without deleting history', () =
   assert.match(toolkit, /data-void-sale="\$\{sale\.id\}">Remove/i);
   assert.match(toolkit, /void_stock_sale/i);
   assert.match(toolkit, /confirmedSales = records\.sales\.filter\(item => item\.dataStatus === 'verified' && !item\.archivedAt\)/);
+});
+
+test('voiding a sale safely reactivates archived stock before compensation', () => {
+  assert.match(archivedSaleVoidMigration, /function public\.void_stock_sale/i);
+  assert.match(archivedSaleVoidMigration, /for update/i);
+  assert.match(archivedSaleVoidMigration, /if item_archived_at is not null/i);
+  assert.match(archivedSaleVoidMigration, /set archived_at = null[\s\S]*archived_by = null/i);
+  assert.match(archivedSaleVoidMigration, /insert into public\.inventory_movements/i);
+  assert.match(archivedSaleVoidMigration, /'stock_sale_void'/i);
+  assert.match(archivedSaleVoidMigration, /update public\.stock_sales[\s\S]*set archived_at = now\(\)/i);
 });
 
 test('stock can be removed from active records without deleting history', () => {
