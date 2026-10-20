@@ -237,3 +237,34 @@
 @media(prefers-reduced-transparency:reduce){
   .toolkit-page .metric-grid article,.toolkit-page .dashboard-grid article,.toolkit-page .insight-grid>article,.toolkit-page .integration-grid article,.toolkit-page .shipping-columns>article,.toolkit-page .calculator-card,.toolkit-page .settings-section,.toolkit-page .table-wrap,.action-sheet{background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}
 }
+
+/* Kurionyx orange, graphite and petrol-teal brand atmosphere */
+.toolkit-page{
+  --bank-ink:#103f47;
+  --bank-ink-soft:#31545a;
+  --bank-coral:#f47a24;
+  --bank-coral-dark:#d95f12;
+  --bank-mint:#d6ece7;
+  --bank-blue:#dce6e8;
+  --bank-bg:#dfe4e6;
+  --bank-card:#f8faf9;
+  --bank-border:#d4dade;
+  background-color:#dfe4e6;
+  background-image:linear-gradient(135deg,rgba(234,238,240,.70),rgba(223,228,230,.60)),url('assets/backgrounds/kurionyx-relief-orange-teal.png');
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-attachment:fixed;
+}
+.toolkit-page .toolkit aside{background:#103f47ed}
+.toolkit-page .toolkit-logo{background:#f47a24;box-shadow:0 10px 25px #f47a2445}
+.toolkit-page .metric-grid article:first-child,.toolkit-page .calculator-results{background:#103f47}
+.toolkit-page .metric-grid .accent-metric,.toolkit-page .button.primary,.toolkit-page .primary{background:#f47a24}
+.toolkit-page .metric-grid article,.toolkit-page .dashboard-grid article,.toolkit-page .insight-grid>article,.toolkit-page .integration-grid article,.toolkit-page .shipping-columns>article,.toolkit-page .calculator-card,.toolkit-page .settings-section,.toolkit-page .table-wrap{background:#f8faf9d9;border-color:#ffffff9c}
+.toolkit-page input:focus,.toolkit-page select:focus,.toolkit-page textarea:focus{border-color:#f47a24;box-shadow:0 0 0 4px #f47a241c}
+
+@media(max-width:800px){
+  .toolkit-page{background-image:linear-gradient(145deg,rgba(237,240,242,.79),rgba(222,228,230,.73)),url('assets/backgrounds/kurionyx-relief-orange-teal.png');background-position:58% center}
+  .toolkit-page .tool-main>header{background:#edf0f1d9}
+  .toolkit-page .tool-nav.active{background:#fff0e5;color:#c5530d}
+}
