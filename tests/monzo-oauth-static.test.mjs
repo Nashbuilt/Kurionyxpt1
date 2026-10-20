@@ -9,6 +9,11 @@ const [migration, edgeFunction, config, settings] = await Promise.all([
   readFile(new URL('../settings.js', import.meta.url), 'utf8')
 ]);
 
+const integrationStatusMigration = await readFile(
+  new URL('../supabase/migrations/20261020191800_allow_connected_integration_status.sql', import.meta.url),
+  'utf8'
+);
+
 test('Monzo tokens are stored through Vault and never exposed to browser roles', () => {
   assert.match(migration, /vault\.create_secret/i);
   assert.match(migration, /vault\.update_secret/i);
@@ -67,4 +72,11 @@ test('settings provides a real owner-gated Monzo connection control', () => {
   assert.match(settings, /functions\.invoke\('monzo-oauth-callback'/);
   assert.match(settings, /error\?\.context[\s\S]*error\.context\.json/);
   assert.match(settings, /state\.isOwner \? '' : 'disabled'/);
+});
+
+test('workspace integrations allow live connection lifecycle states', () => {
+  assert.match(integrationStatusMigration, /drop constraint if exists workspace_integrations_status_check/i);
+  assert.match(integrationStatusMigration, /'connected'/i);
+  assert.match(integrationStatusMigration, /'reauthorisation_required'/i);
+  assert.match(integrationStatusMigration, /validate constraint workspace_integrations_status_check/i);
 });
