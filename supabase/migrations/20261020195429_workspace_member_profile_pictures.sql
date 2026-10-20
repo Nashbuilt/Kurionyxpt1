@@ -72,7 +72,7 @@ begin
     select 1 from public.workspace_members current_member
     where current_member.workspace_id = p_workspace_id and current_member.user_id = auth.uid()
   ) then raise exception 'Workspace access required.' using errcode = '42501'; end if;
-  return query select member.user_id, member.display_name, coalesce(account.email, ''), member.role,
+  return query select member.user_id, member.display_name::text, coalesce(account.email, '')::text, member.role::text,
     member.created_at, member.avatar_path
   from public.workspace_members member left join auth.users account on account.id = member.user_id
   where member.workspace_id = p_workspace_id order by member.created_at;

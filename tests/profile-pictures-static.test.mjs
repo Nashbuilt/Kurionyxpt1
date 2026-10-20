@@ -15,6 +15,8 @@ test('uploads are restricted to the signed-in member folder', () => {
   assert.match(migration, /set_my_workspace_avatar/);
   assert.match(migration, /expected_prefix := p_workspace_id::text \|\| '\/' \|\| current_user_id::text/);
   assert.match(migration, /revoke all on function public\.set_my_workspace_avatar\(bigint, text\) from public, anon/);
+  assert.match(migration, /member\.display_name::text/);
+  assert.match(migration, /member\.role::text/);
 });
 
 test('settings validates and uploads profile pictures without overwriting paths', () => {
