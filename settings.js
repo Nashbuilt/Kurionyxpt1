@@ -198,11 +198,11 @@ function renderCollection(key) {
 }
 
 function renderRecordCard(key, config, item) {
-  const viewButton = `<button type="button" data-settings-edit="${key}" data-record-id="${item.id}">${state.isOwner && !item.archived_at ? 'Edit' : 'View'}</button>`;
+  const viewButton = `<button type="button" class="primary-row-action" data-settings-edit="${key}" data-record-id="${item.id}">${state.isOwner && !item.archived_at ? 'Open' : 'View'}</button>`;
   const stateButton = item.archived_at
     ? `<button type="button" data-settings-restore="${key}" data-record-id="${item.id}" ${state.isOwner ? '' : 'disabled'}>Restore</button>`
     : `<button type="button" class="delete-row" data-settings-archive="${key}" data-record-id="${item.id}" ${state.isOwner ? '' : 'disabled'}>Archive</button>`;
-  return `<article class="settings-record ${item.archived_at ? 'archived' : ''}"><div><span class="record-state">${item.archived_at ? 'Archived' : 'Active'}</span><h4>${esc(item.name)}</h4><p>${esc(config.summary(item))}</p></div><div class="row-actions">${viewButton}${stateButton}</div></article>`;
+  return `<article class="settings-record ${item.archived_at ? 'archived' : ''}"><div><span class="record-state">${item.archived_at ? 'Archived' : 'Active'}</span><h4>${esc(item.name)}</h4><p>${esc(config.summary(item))}</p></div><div class="row-actions">${viewButton}<details class="action-menu"><summary aria-label="More actions" title="More actions"><span aria-hidden="true">•••</span></summary><div class="action-sheet">${stateButton}</div></details></div></article>`;
 }
 
 function renderTeam() {
