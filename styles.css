@@ -198,7 +198,7 @@
 .profile-photo-help{display:block;color:var(--muted);font-size:10px;margin-top:2px}
 
 /* Frosted application surfaces and consolidated native-style list actions */
-.toolkit-page{background:
+.toolkit-page{overflow-x:hidden;background:
   radial-gradient(circle at 9% 7%,#dceaff 0,transparent 31%),
   radial-gradient(circle at 91% 2%,#ffe1e4 0,transparent 29%),
   linear-gradient(145deg,#f7f8fa 0%,#eef1f5 100%);background-attachment:fixed}
@@ -213,6 +213,7 @@
 .action-menu summary{list-style:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#eef0f3;color:var(--bank-ink);cursor:pointer;font-weight:800;letter-spacing:1px;user-select:none}
 .action-menu summary::-webkit-details-marker{display:none}
 .action-menu[open] summary{background:var(--bank-ink);color:white}
+.action-menu:not([open]) .action-sheet{display:none}
 .action-sheet{position:absolute;z-index:80;right:0;top:calc(100% + 7px);width:210px;padding:7px;border:1px solid #ffffffc7;border-radius:16px;background:#ffffffeb;box-shadow:0 18px 55px #14203330;backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);display:grid;gap:3px}
 .toolkit-page .action-sheet button,.action-sheet button{width:100%;min-height:42px;padding:10px 12px;border:0!important;border-radius:10px!important;background:transparent!important;color:var(--bank-ink)!important;text-align:left;font-size:12px;font-weight:650;white-space:normal}
 .toolkit-page .action-sheet button:hover,.action-sheet button:hover{background:#eef1f5!important}
