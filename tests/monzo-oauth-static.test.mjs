@@ -37,12 +37,13 @@ test('callback verifies secure storage and reports actionable failures', () => {
   assert.match(edgeFunction, /redirectResult\('storage_failed'\)/);
   assert.match(edgeFunction, /\? 'approval_required' : 'accounts_failed'/);
   assert.match(settings, /Monzo could not verify the client details/);
-  assert.match(settings, /approve that new request immediately in the Monzo app/);
+  assert.match(settings, /approve that same request in the Monzo app/);
 });
 
 test('callback waits for mobile approval without replacing the OAuth token', () => {
   assert.match(edgeFunction, /fetchApprovedBusinessAccounts/);
-  assert.match(edgeFunction, /attempt < 12/);
+  assert.match(edgeFunction, /attempt < 24/);
+  assert.match(edgeFunction, /attempt < 23/);
   assert.match(edgeFunction, /await wait\(5000\)/);
   assert.match(edgeFunction, /\[401, 403\]\.includes/);
 });

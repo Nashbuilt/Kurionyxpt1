@@ -108,7 +108,7 @@ export async function initSettings(options) {
       invalid_callback: ['Monzo returned an incomplete connection. Start a fresh connection from Kurionyx.', 'error'],
       access_denied: ['The Monzo request was cancelled. No account was connected.', 'error'],
       token_failed: ['Monzo could not verify the client details. Check the client ID, secret and exact redirect URL.', 'error'],
-      approval_required: ['Monzo did not confirm approval within one minute. Start once more, keep the Kurionyx page open and approve that new request immediately in the Monzo app.', 'error'],
+      approval_required: ['Monzo did not confirm approval within two minutes. Do not reuse an older email link. Start once, keep the Kurionyx page open, use the newest email, then approve that same request in the Monzo app.', 'error'],
       accounts_failed: ['Monzo authorised the login but the business-account lookup failed. No personal account was connected.', 'error'],
       storage_failed: ['The business account was found, but Kurionyx could not securely save the connection.', 'error']
     };
