@@ -30,6 +30,12 @@ test('callback refuses to connect a personal account', () => {
   assert.match(settings, /No personal account was connected/);
 });
 
+test('OAuth configuration ignores accidental surrounding whitespace', () => {
+  assert.match(edgeFunction, /Deno\.env\.get\('MONZO_CLIENT_ID'\)\?\.trim\(\)/);
+  assert.match(edgeFunction, /Deno\.env\.get\('MONZO_CLIENT_SECRET'\)\?\.trim\(\)/);
+  assert.match(edgeFunction, /Deno\.env\.get\('MONZO_REDIRECT_URI'\)\?\.trim\(\)/);
+});
+
 test('public callback performs its own authentication checks', () => {
   assert.match(config, /\[functions\.monzo-oauth-callback\][\s\S]*verify_jwt = false/);
   assert.match(edgeFunction, /auth\.getUser\(\)/);

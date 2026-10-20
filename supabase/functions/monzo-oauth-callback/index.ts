@@ -13,9 +13,12 @@ Deno.serve(async req => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const clientId = Deno.env.get('MONZO_CLIENT_ID');
-  const clientSecret = Deno.env.get('MONZO_CLIENT_SECRET');
-  const redirectUri = Deno.env.get('MONZO_REDIRECT_URI');
+  // Dashboard copy/paste can include an invisible trailing newline. Monzo
+  // treats OAuth credentials and redirect URIs as exact strings, so normalize
+  // surrounding whitespace before constructing either OAuth request.
+  const clientId = Deno.env.get('MONZO_CLIENT_ID')?.trim();
+  const clientSecret = Deno.env.get('MONZO_CLIENT_SECRET')?.trim();
+  const redirectUri = Deno.env.get('MONZO_REDIRECT_URI')?.trim();
   if (!supabaseUrl || !anonKey || !serviceKey || !clientId || !clientSecret || !redirectUri) return json({ error: 'Server configuration is incomplete.' }, 500);
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
