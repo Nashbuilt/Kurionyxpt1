@@ -8,6 +8,22 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const appUrl = 'https://kurionyx.vercel.app/toolkit.html';
 const redirectResult = (result: string) => Response.redirect(`${appUrl}?monzo=${encodeURIComponent(result)}`, 302);
+const wait = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+async function fetchApprovedBusinessAccounts(accessToken: string) {
+  const accountsUrl = new URL('https://api.monzo.com/accounts');
+  accountsUrl.searchParams.set('account_type', 'uk_business');
+  let response: Response | null = null;
+  // Monzo issues the OAuth code before the user has necessarily approved the
+  // new token in the mobile app. Recheck the same token so approval is not
+  // discarded by starting a second OAuth attempt with a different token.
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    response = await fetch(accountsUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (response.ok || ![401, 403].includes(response.status)) return response;
+    if (attempt < 11) await wait(5000);
+  }
+  return response;
+}
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -52,9 +68,8 @@ Deno.serve(async req => {
     // public response does not reliably expose an account-type field, so
     // guessing from a user-facing description can reject a valid business
     // account or, worse, select the wrong account.
-    const accountsUrl = new URL('https://api.monzo.com/accounts');
-    accountsUrl.searchParams.set('account_type', 'uk_business');
-    const accountsResponse = await fetch(accountsUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
+    const accountsResponse = await fetchApprovedBusinessAccounts(String(token.access_token));
+    if (!accountsResponse) return redirectResult('accounts_failed');
     if (!accountsResponse.ok) {
       console.error('Monzo business account lookup failed with status', accountsResponse.status);
       return redirectResult(accountsResponse.status === 401 || accountsResponse.status === 403 ? 'approval_required' : 'accounts_failed');
