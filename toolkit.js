@@ -107,6 +107,9 @@ async function loadBankSummary(force = false) {
     $('#bank-spent-today').textContent = moneyMinor(Math.abs(data.balance.spendToday), data.balance.currency);
     $('#bank-account-name').textContent = data.account.name || 'Monzo Business';
     $('#bank-refreshed').textContent = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(data.refreshedAt));
+    const warning = $('#bank-warning');
+    warning.hidden = !data.warnings?.length;
+    warning.textContent = data.warnings?.join(' ') || '';
     $('#bank-pots').innerHTML = data.pots.length ? data.pots.map(pot => `<article><span>${esc(pot.name)}</span><strong>${moneyMinor(pot.balance, pot.currency)}</strong></article>`).join('') : '<p class="bank-empty">No active pots were returned.</p>';
     renderBankTransactions('#bank-payments', data.payments || [], 'No recent outgoing payments were returned.');
     renderBankTransactions('#bank-income', data.income || [], 'No recent incoming payments were returned.');
