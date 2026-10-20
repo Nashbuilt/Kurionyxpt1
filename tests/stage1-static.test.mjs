@@ -74,7 +74,7 @@ test('stock can be removed from active records without deleting history', () => 
   assert.match(removalMigration, /Removed from active records/i);
   assert.match(removalMigration, /member\.user_id = auth\.uid\(\)/i);
   assert.doesNotMatch(removalMigration, /delete\s+from\s+public\.stock_items/i);
-  assert.match(toolkit, /data-archive-stock="\$\{item\.id\}">Remove</i);
+  assert.match(toolkit, /data-archive-stock="\$\{item\.id\}">Remove from active stock</i);
   assert.doesNotMatch(toolkit, /Reduce stock to zero before archiving/i);
 });
 
