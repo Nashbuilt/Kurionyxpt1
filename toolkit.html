@@ -28,6 +28,7 @@
         <button class="tool-nav" data-view="expenses">£ <span>Expenses</span></button>
         <button class="tool-nav" data-view="spending">▥ <span>Spending</span></button>
         <button class="tool-nav" data-view="calculator">% <span>Calculator</span></button>
+        <button class="tool-nav" data-view="bank">£ <span>Bank</span></button>
         <button class="tool-nav" data-view="integrations">◇ <span>Integrations</span></button>
         <button class="tool-nav" data-view="settings">⚙ <span>Settings</span></button>
       </nav>
@@ -121,9 +122,29 @@
           </div>
         </section>
 
+        <section class="tool-view" data-panel="bank">
+          <div class="section-tool-head bank-heading"><div><p>Monzo Business</p><h2>Bank</h2><span>Live read-only balances and recent activity from the connected business account.</span></div><button class="button secondary small" id="refresh-bank" type="button">Refresh</button></div>
+          <div id="bank-owner-notice" class="settings-notice" hidden>Bank information is restricted to the workspace owner. Team access can be reviewed later when banking authority is formally agreed.</div>
+          <div id="bank-loading" class="bank-loading"><span class="loading-ring"></span><p>Open the Bank page to load live Monzo information.</p></div>
+          <div id="bank-error" class="settings-error" hidden><strong>Bank information is unavailable.</strong><p></p></div>
+          <div id="bank-content" hidden>
+            <div class="bank-balance-grid">
+              <article class="bank-balance-main"><p>Available balance</p><strong id="bank-available">£0.00</strong><span id="bank-account-name">Monzo Business</span></article>
+              <article><p>Total including pots</p><strong id="bank-total">£0.00</strong><span>Account and all active pots</span></article>
+              <article><p>Spent today</p><strong id="bank-spent-today">£0.00</strong><span>Reported by Monzo</span></article>
+              <article><p>Last refreshed</p><strong class="bank-refresh-time" id="bank-refreshed">—</strong><span>Live read-only connection</span></article>
+            </div>
+            <section class="bank-section"><div class="card-heading"><div><p>Money set aside</p><h3>Pots</h3></div></div><div id="bank-pots" class="bank-pot-grid"></div></section>
+            <div class="bank-activity-grid">
+              <section class="bank-section"><div class="card-heading"><div><p>Money out</p><h3>Recent payments</h3></div></div><div id="bank-payments" class="bank-transaction-list"></div></section>
+              <section class="bank-section"><div class="card-heading"><div><p>Money in</p><h3>Recent income</h3></div></div><div id="bank-income" class="bank-transaction-list"></div></section>
+            </div>
+          </div>
+        </section>
+
         <section class="tool-view" data-panel="integrations">
           <div class="section-tool-head"><div><p>Roadmap</p><h2>Future connections</h2></div></div>
-          <div class="integration-grid"><article><b>Supabase</b><span class="connected">Connected</span><p>Secure team sign-in and shared operational records.</p></article><article><b>Amazon</b><span class="planned">Planned</span><p>Orders, fees and inventory through the Selling Partner API.</p></article><article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article><article><b>Monzo Developer API</b><span class="planned">Setup required</span><p>Owner-only transaction imports for an approved Kurionyx account. OAuth credentials and a secure server callback are still required.</p></article><article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article></div>
+          <div class="integration-grid"><article><b>Supabase</b><span class="connected">Connected</span><p>Secure team sign-in and shared operational records.</p></article><article><b>Amazon</b><span class="planned">Planned</span><p>Orders, fees and inventory through the Selling Partner API.</p></article><article><b>Starling</b><span class="planned">Planned</span><p>Bank transactions and cash-flow reconciliation.</p></article><article><b>Monzo Developer API</b><span class="connected">Connected</span><p>Owner-only live balances, pots and recent activity from the approved Kurionyx business account.</p></article><article><b>OpenAI</b><span class="planned">Planned</span><p>AI summaries, stock insights and assisted product research.</p></article></div>
         </section>
 
         <section class="tool-view" data-panel="settings">

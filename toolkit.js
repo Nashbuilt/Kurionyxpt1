@@ -9,6 +9,9 @@ const supabase = createClient(
 
 const records = { stock: [], expenses: [], sales: [], shipments: [], movements: [] };
 let workspaceId = null;
+let workspaceRole = null;
+let bankLoaded = false;
+let bankLoading = false;
 
 const $ = selector => document.querySelector(selector);
 const toolkitApp = $('#toolkit-app');
@@ -27,6 +30,7 @@ const dialogs = {
 const money = value => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value) || 0);
 const number = value => new Intl.NumberFormat('en-GB').format(Number(value) || 0);
 const shortDate = value => value ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : 'Not set';
+const moneyMinor = (value, currency = 'GBP') => new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format((Number(value) || 0) / 100);
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>'"]/g, character => ({
@@ -59,6 +63,64 @@ function view(name) {
   document.querySelectorAll('.tool-nav[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === name));
   document.querySelectorAll('.tool-view').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === name));
   $('#tool-title').textContent = name[0].toUpperCase() + name.slice(1);
+  if (name === 'bank' && !bankLoaded) loadBankSummary();
+}
+
+function renderBankTransactions(selector, transactions, emptyMessage) {
+  $(selector).innerHTML = transactions.length ? transactions.map(transaction => {
+    const title = transaction.merchant || transaction.description;
+    const detail = [transaction.category?.replaceAll('_', ' '), shortDate(transaction.settled || transaction.created)].filter(Boolean).join(' · ');
+    return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div><b class="${transaction.amount > 0 ? 'income' : ''}">${transaction.amount > 0 ? '+' : '−'}${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
+  }).join('') : `<p class="bank-empty">${esc(emptyMessage)}</p>`;
+}
+
+async function loadBankSummary(force = false) {
+  if (bankLoading || (bankLoaded && !force)) return;
+  const ownerNotice = $('#bank-owner-notice');
+  const loading = $('#bank-loading');
+  const errorPanel = $('#bank-error');
+  const content = $('#bank-content');
+  if (workspaceRole !== 'owner') {
+    ownerNotice.hidden = false;
+    loading.hidden = true;
+    content.hidden = true;
+    return;
+  }
+  bankLoading = true;
+  ownerNotice.hidden = true;
+  errorPanel.hidden = true;
+  loading.hidden = false;
+  loading.querySelector('p').textContent = 'Loading live Monzo balances and transactions…';
+  $('#refresh-bank').disabled = true;
+  try {
+    const { data, error } = await supabase.functions.invoke('monzo-bank-summary', { body: { action: 'summary' } });
+    if (error) {
+      let message = error.message;
+      if (error.context?.json) {
+        const details = await error.context.json().catch(() => null);
+        if (details?.error) message = details.error;
+      }
+      throw new Error(message);
+    }
+    $('#bank-available').textContent = moneyMinor(data.balance.available, data.balance.currency);
+    $('#bank-total').textContent = moneyMinor(data.balance.total, data.balance.currency);
+    $('#bank-spent-today').textContent = moneyMinor(Math.abs(data.balance.spendToday), data.balance.currency);
+    $('#bank-account-name').textContent = data.account.name || 'Monzo Business';
+    $('#bank-refreshed').textContent = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(data.refreshedAt));
+    $('#bank-pots').innerHTML = data.pots.length ? data.pots.map(pot => `<article><span>${esc(pot.name)}</span><strong>${moneyMinor(pot.balance, pot.currency)}</strong></article>`).join('') : '<p class="bank-empty">No active pots were returned.</p>';
+    renderBankTransactions('#bank-payments', data.payments || [], 'No recent outgoing payments were returned.');
+    renderBankTransactions('#bank-income', data.income || [], 'No recent incoming payments were returned.');
+    content.hidden = false;
+    bankLoaded = true;
+  } catch (error) {
+    content.hidden = true;
+    errorPanel.hidden = false;
+    errorPanel.querySelector('p').textContent = error.message;
+  } finally {
+    loading.hidden = true;
+    bankLoading = false;
+    $('#refresh-bank').disabled = false;
+  }
 }
 
 async function loadWorkspaceData() {
@@ -641,6 +703,7 @@ $('#expense-form').elements.stockItemId.addEventListener('change', event => {
 ['initialUnits', 'unitCost', 'shippingPaid', 'otherFees'].forEach(name => $('#stock-form').elements[name].addEventListener('input', updateStockCostPreview));
 $('#sign-out').addEventListener('click', signOut);
 $('#error-sign-out').addEventListener('click', signOut);
+$('#refresh-bank').addEventListener('click', () => loadBankSummary(true));
 
 async function start() {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -654,6 +717,7 @@ async function start() {
   if (!membership) return showAccessError('This login is valid, but it has not been added to the Kurionyx workspace.');
 
   workspaceId = membership.workspace_id;
+  workspaceRole = membership.role;
   $('#account-role').textContent = membership.role === 'owner' ? 'Workspace owner' : 'Team member';
   try {
     await loadWorkspaceData();
