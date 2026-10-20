@@ -73,22 +73,29 @@ Deno.serve(async req => {
   }
 
   const accountId = encodeURIComponent(connection.account_id);
-  const since = encodeURIComponent(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
+  // Monzo enforces a strict 90-day window after the first five minutes of an
+  // OAuth session. Use 89 days to avoid boundary/clock-skew rejections.
+  const since = encodeURIComponent(new Date(Date.now() - 89 * 24 * 60 * 60 * 1000).toISOString());
   const [balanceResponse, potsResponse, transactionsResponse] = await Promise.all([
     monzoFetch(`/balance?account_id=${accountId}`, accessToken),
     monzoFetch(`/pots?current_account_id=${accountId}`, accessToken),
-    monzoFetch(`/transactions?account_id=${accountId}&limit=50&since=${since}&expand[]=merchant`, accessToken)
+    monzoFetch(`/transactions?account_id=${accountId}&limit=50&since=${since}`, accessToken)
   ]);
-  if ([balanceResponse, potsResponse, transactionsResponse].some(response => response.status === 401 || response.status === 403)) {
+  console.log('Monzo bank summary statuses', balanceResponse.status, potsResponse.status, transactionsResponse.status);
+  if (balanceResponse.status === 401 || balanceResponse.status === 403) {
     await admin.rpc('set_monzo_connection_sync_state', { p_workspace_id: membership.workspace_id, p_status: 'reauthorisation_required', p_synced: false });
     return json({ error: 'Monzo requires reconnection by the workspace owner.', code: 'reauthorisation_required' }, 409);
   }
-  if (!balanceResponse.ok || !potsResponse.ok || !transactionsResponse.ok) {
+  if (!balanceResponse.ok) {
     console.error('Monzo bank summary request failed', balanceResponse.status, potsResponse.status, transactionsResponse.status);
     return json({ error: 'Monzo could not provide the latest bank information.' }, 502);
   }
 
-  const [balance, potsBody, transactionsBody] = await Promise.all([balanceResponse.json(), potsResponse.json(), transactionsResponse.json()]);
+  const [balance, potsBody, transactionsBody] = await Promise.all([
+    balanceResponse.json(),
+    potsResponse.ok ? potsResponse.json() : Promise.resolve({ pots: [] }),
+    transactionsResponse.ok ? transactionsResponse.json() : Promise.resolve({ transactions: [] })
+  ]);
   const pots = (Array.isArray(potsBody.pots) ? potsBody.pots : []).filter((pot: Record<string, unknown>) => !pot.deleted).map((pot: Record<string, unknown>) => ({
     id: String(pot.id || ''), name: String(pot.name || 'Pot'), balance: Number(pot.balance || 0), currency: String(pot.currency || 'GBP')
   }));
@@ -104,6 +111,10 @@ Deno.serve(async req => {
     pots,
     payments: transactions.filter((transaction: { amount: number }) => transaction.amount < 0).slice(0, 12),
     income: transactions.filter((transaction: { amount: number }) => transaction.amount > 0).slice(0, 12),
+    warnings: [
+      ...(!potsResponse.ok ? ['Monzo did not make pots available for this account.'] : []),
+      ...(!transactionsResponse.ok ? ['Monzo did not make recent transactions available for this session.'] : [])
+    ],
     refreshedAt: new Date().toISOString()
   });
 });

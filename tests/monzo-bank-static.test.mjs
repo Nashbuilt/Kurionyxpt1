@@ -26,6 +26,10 @@ test('bank summary is owner-only and returns business balances, pots and transac
   assert.match(edgeFunction, /payments:/);
   assert.match(edgeFunction, /income:/);
   assert.match(edgeFunction, /Cache-Control': 'no-store'/);
+  assert.match(edgeFunction, /balanceResponse\.status === 401/);
+  assert.match(edgeFunction, /warnings:/);
+  assert.match(edgeFunction, /89 \* 24 \* 60 \* 60 \* 1000/);
+  assert.doesNotMatch(edgeFunction, /expand\[\]=merchant/);
 });
 
 test('expired Monzo tokens refresh and rotate without reaching the browser', () => {
