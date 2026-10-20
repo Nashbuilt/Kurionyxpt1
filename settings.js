@@ -104,7 +104,13 @@ export async function initSettings(options) {
     const messages = {
       connected: ['Monzo business account connected successfully.', 'success'],
       no_business_account: ['Monzo did not return a business account. No personal account was connected.', 'error'],
-      invalid_state: ['The Monzo connection expired or was already used. Please try again.', 'error']
+      invalid_state: ['The Monzo connection expired or was already used. Start a fresh connection and complete it within 10 minutes.', 'error'],
+      invalid_callback: ['Monzo returned an incomplete connection. Start a fresh connection from Kurionyx.', 'error'],
+      access_denied: ['The Monzo request was cancelled. No account was connected.', 'error'],
+      token_failed: ['Monzo could not verify the client details. Check the client ID, secret and exact redirect URL.', 'error'],
+      approval_required: ['Approve Kurionyx inside the Monzo app, then start a fresh connection.', 'error'],
+      accounts_failed: ['Monzo authorised the login but did not allow the business-account lookup. Approve access in the Monzo app and try again.', 'error'],
+      storage_failed: ['The business account was found, but Kurionyx could not securely save the connection.', 'error']
     };
     const [message, level] = messages[monzoResult] || ['The Monzo connection could not be completed.', 'error'];
     state.notify(message, level);

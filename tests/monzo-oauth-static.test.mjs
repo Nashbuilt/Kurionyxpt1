@@ -25,9 +25,19 @@ test('OAuth state is short-lived, single-use and owner-only', () => {
 });
 
 test('callback refuses to connect a personal account', () => {
-  assert.match(edgeFunction, /\/business\/i\.test/);
-  assert.match(edgeFunction, /monzo=no_business_account/);
+  assert.match(edgeFunction, /account_type', 'uk_business'/);
+  assert.match(edgeFunction, /p_account_type: 'uk_business'/);
+  assert.doesNotMatch(edgeFunction, /\/business\/i\.test/);
+  assert.match(edgeFunction, /redirectResult\('no_business_account'\)/);
   assert.match(settings, /No personal account was connected/);
+});
+
+test('callback verifies secure storage and reports actionable failures', () => {
+  assert.match(edgeFunction, /\.from\('monzo_connections'\)[\s\S]*\.eq\('account_type', 'uk_business'\)[\s\S]*\.eq\('status', 'connected'\)/);
+  assert.match(edgeFunction, /redirectResult\('storage_failed'\)/);
+  assert.match(edgeFunction, /\? 'approval_required' : 'accounts_failed'/);
+  assert.match(settings, /Monzo could not verify the client details/);
+  assert.match(settings, /Approve Kurionyx inside the Monzo app/);
 });
 
 test('OAuth configuration ignores accidental surrounding whitespace', () => {

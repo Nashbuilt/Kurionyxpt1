@@ -7,6 +7,7 @@ const cors = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const appUrl = 'https://kurionyx.vercel.app/toolkit.html';
+const redirectResult = (result: string) => Response.redirect(`${appUrl}?monzo=${encodeURIComponent(result)}`, 302);
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -24,39 +25,72 @@ Deno.serve(async req => {
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const url = new URL(req.url);
 
+  if (req.method === 'GET' && url.searchParams.has('error')) {
+    return redirectResult(url.searchParams.get('error') === 'access_denied' ? 'access_denied' : 'invalid_callback');
+  }
+
   if (req.method === 'GET' && url.searchParams.has('code')) {
     const state = url.searchParams.get('state');
     const code = url.searchParams.get('code');
-    if (!state || !code) return Response.redirect(`${appUrl}?monzo=invalid_callback`, 302);
+    if (!state || !code) return redirectResult('invalid_callback');
     const { data: pending } = await admin.from('monzo_oauth_states').select('*').eq('state', state).is('used_at', null).gt('expires_at', new Date().toISOString()).maybeSingle();
-    if (!pending) return Response.redirect(`${appUrl}?monzo=invalid_state`, 302);
+    if (!pending) return redirectResult('invalid_state');
     await admin.from('monzo_oauth_states').update({ used_at: new Date().toISOString() }).eq('state', state).is('used_at', null);
 
     const tokenResponse = await fetch('https://api.monzo.com/oauth2/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ grant_type: 'authorization_code', client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, code })
     });
-    if (!tokenResponse.ok) return Response.redirect(`${appUrl}?monzo=token_failed`, 302);
+    if (!tokenResponse.ok) {
+      console.error('Monzo OAuth token exchange failed with status', tokenResponse.status);
+      return redirectResult('token_failed');
+    }
     const token = await tokenResponse.json();
-    const accountsResponse = await fetch('https://api.monzo.com/accounts', { headers: { Authorization: `Bearer ${token.access_token}` } });
-    if (!accountsResponse.ok) return Response.redirect(`${appUrl}?monzo=accounts_failed`, 302);
+    if (!token?.access_token) return redirectResult('token_failed');
+
+    // Ask Monzo for business accounts specifically. The unfiltered endpoint's
+    // public response does not reliably expose an account-type field, so
+    // guessing from a user-facing description can reject a valid business
+    // account or, worse, select the wrong account.
+    const accountsUrl = new URL('https://api.monzo.com/accounts');
+    accountsUrl.searchParams.set('account_type', 'uk_business');
+    const accountsResponse = await fetch(accountsUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
+    if (!accountsResponse.ok) {
+      console.error('Monzo business account lookup failed with status', accountsResponse.status);
+      return redirectResult(accountsResponse.status === 401 || accountsResponse.status === 403 ? 'approval_required' : 'accounts_failed');
+    }
     const accountsBody = await accountsResponse.json();
     const accounts = Array.isArray(accountsBody.accounts) ? accountsBody.accounts : [];
-    const business = accounts.find((account: Record<string, unknown>) => /business/i.test(String(account.type || account.account_type || account.description || '')));
-    if (!business) return Response.redirect(`${appUrl}?monzo=no_business_account`, 302);
+    const business = accounts.find((account: Record<string, unknown>) => typeof account.id === 'string' && account.id.length > 0);
+    if (!business) return redirectResult('no_business_account');
     const expiresAt = token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null;
     const { error } = await admin.rpc('store_monzo_connection', {
       p_workspace_id: pending.workspace_id,
       p_account_id: String(business.id),
       p_account_name: String(business.description || 'Monzo Business'),
-      p_account_type: String(business.type || business.account_type || 'business'),
+      p_account_type: 'uk_business',
       p_access_token: String(token.access_token),
       p_refresh_token: String(token.refresh_token || ''),
       p_expires_at: expiresAt,
       p_connected_by: pending.user_id
     });
-    if (error) return Response.redirect(`${appUrl}?monzo=storage_failed`, 302);
-    return Response.redirect(`${appUrl}?monzo=connected`, 302);
+    if (error) {
+      console.error('Monzo connection storage failed', error.code || 'database_error');
+      return redirectResult('storage_failed');
+    }
+    const { data: savedConnection, error: verificationError } = await admin
+      .from('monzo_connections')
+      .select('workspace_id, account_id, account_type, status')
+      .eq('workspace_id', pending.workspace_id)
+      .eq('account_id', String(business.id))
+      .eq('account_type', 'uk_business')
+      .eq('status', 'connected')
+      .maybeSingle();
+    if (verificationError || !savedConnection) {
+      console.error('Monzo connection verification failed', verificationError?.code || 'missing_connection');
+      return redirectResult('storage_failed');
+    }
+    return redirectResult('connected');
   }
 
   const authorization = req.headers.get('Authorization') || '';
