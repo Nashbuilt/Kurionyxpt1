@@ -17,10 +17,12 @@ async function fetchApprovedBusinessAccounts(accessToken: string) {
   // Monzo issues the OAuth code before the user has necessarily approved the
   // new token in the mobile app. Recheck the same token so approval is not
   // discarded by starting a second OAuth attempt with a different token.
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  // Allow up to two minutes for Monzo's email hand-off and mobile approval.
+  // Keep this below Supabase's 150-second request idle timeout.
+  for (let attempt = 0; attempt < 24; attempt += 1) {
     response = await fetch(accountsUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (response.ok || ![401, 403].includes(response.status)) return response;
-    if (attempt < 11) await wait(5000);
+    if (attempt < 23) await wait(5000);
   }
   return response;
 }
