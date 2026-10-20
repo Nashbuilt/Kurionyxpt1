@@ -147,6 +147,7 @@ async function loadSettings() {
   state.expenseCategories = results[5].data || [];
   state.team = results[6].data || [];
   state.integrations = results[7].data || [];
+  await loadTeamAvatarUrls();
   state.loaded = true;
   updateReferenceLists();
   renderSettings();
@@ -205,7 +206,35 @@ function renderRecordCard(key, config, item) {
 }
 
 function renderTeam() {
-  return `<section class="settings-section"><div class="settings-heading"><div><p>Workspace access</p><h3>Team & Permissions</h3><span>Membership is application access only. It does not establish legal ownership, directorship or banking authority.</span></div></div><div class="settings-notice">Invitations, account creation and role changes are not available in this stage because they require a separately reviewed administration workflow.</div><div class="team-list">${state.team.map(member => `<article><div class="team-avatar">${esc((member.display_name || member.email || '?')[0].toUpperCase())}</div><div><strong>${esc(member.display_name || member.email || member.user_id)}</strong><span>${member.email ? `${esc(member.email)} · ` : ''}${member.user_id === state.userId ? 'Current account · ' : ''}${member.role === 'owner' ? 'Application workspace owner' : 'Team member'}</span></div><span class="data-status status-${member.role === 'owner' ? 'verified' : 'unverified'}">${esc(member.role)}</span></article>`).join('') || '<p class="empty compact">No workspace members returned.</p>'}</div></section>`;
+  return `<section class="settings-section"><div class="settings-heading"><div><p>Workspace access</p><h3>Team & Permissions</h3><span>Each person can change their own private profile picture. Membership does not establish legal ownership, directorship or banking authority.</span></div></div><div class="settings-notice">Invitations, account creation and role changes are not available in this stage because they require a separately reviewed administration workflow.</div><div class="team-list">${state.team.map(member => `<article><div class="team-avatar">${member.avatarUrl ? `<img src="${esc(member.avatarUrl)}" alt="${esc(member.display_name || 'Team member')} profile picture">` : esc((member.display_name || member.email || '?')[0].toUpperCase())}</div><div><strong>${esc(member.display_name || member.email || member.user_id)}</strong><span>${member.email ? `${esc(member.email)} · ` : ''}${member.user_id === state.userId ? 'Current account · ' : ''}${member.role === 'owner' ? 'Application workspace owner' : 'Team member'}</span>${member.user_id === state.userId ? '<button type="button" class="profile-photo-button" data-change-profile-photo>Change profile picture</button><input type="file" data-profile-photo-input accept="image/jpeg,image/png,image/webp" hidden><small class="profile-photo-help">JPG, PNG or WebP, up to 5 MB.</small>' : ''}</div><span class="data-status status-${member.role === 'owner' ? 'verified' : 'unverified'}">${esc(member.role)}</span></article>`).join('') || '<p class="empty compact">No workspace members returned.</p>'}</div></section>`;
+}
+
+async function loadTeamAvatarUrls() {
+  const members = state.team.filter(member => member.avatar_path);
+  if (!members.length) return;
+  const { data, error } = await state.supabase.storage.from('profile-pictures').createSignedUrls(members.map(member => member.avatar_path), 3600);
+  if (error) throw error;
+  members.forEach((member, index) => { member.avatarUrl = data[index]?.signedUrl || ''; });
+}
+
+async function uploadProfilePhoto(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { state.notify('Choose a JPG, PNG or WebP image.', 'error'); input.value = ''; return; }
+  if (file.size > 5 * 1024 * 1024) { state.notify('Profile pictures must be 5 MB or smaller.', 'error'); input.value = ''; return; }
+  const member = state.team.find(item => item.user_id === state.userId);
+  if (!member) return state.notify('Your workspace membership could not be found.', 'error');
+  const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[file.type];
+  const newPath = `${state.workspaceId}/${state.userId}/${crypto.randomUUID()}.${extension}`;
+  state.notify('Uploading profile picture…', 'info');
+  const { error: uploadError } = await state.supabase.storage.from('profile-pictures').upload(newPath, file, { contentType: file.type, upsert: false });
+  if (uploadError) return state.notify(uploadError.message, 'error');
+  const { error: saveError } = await state.supabase.rpc('set_my_workspace_avatar', { p_workspace_id: state.workspaceId, p_avatar_path: newPath });
+  if (saveError) { await state.supabase.storage.from('profile-pictures').remove([newPath]); return state.notify(saveError.message, 'error'); }
+  if (member.avatar_path) await state.supabase.storage.from('profile-pictures').remove([member.avatar_path]);
+  input.value = '';
+  state.notify('Profile picture updated.', 'success');
+  await loadSettings();
 }
 
 function renderIntegrations() {
@@ -255,6 +284,8 @@ function bindSettingsEvents() {
     if (restore) return restoreRecord(restore.dataset.settingsRestore, Number(restore.dataset.recordId));
     const monzo = event.target.closest('[data-connect-monzo]');
     if (monzo) return connectMonzo(monzo);
+    const changePhoto = event.target.closest('[data-change-profile-photo]');
+    if (changePhoto) return changePhoto.parentElement.querySelector('[data-profile-photo-input]')?.click();
   });
   root().addEventListener('input', event => {
     if (event.target.matches('[data-settings-search]')) {
@@ -270,6 +301,7 @@ function bindSettingsEvents() {
       state.showArchived = event.target.checked;
       renderSettings();
     }
+    if (event.target.matches('[data-profile-photo-input]')) uploadProfilePhoto(event.target);
   });
   root().addEventListener('submit', event => {
     if (event.target.id === 'business-profile-form') saveProfile(event);
