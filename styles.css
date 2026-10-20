@@ -250,7 +250,7 @@
   --bank-card:#f8faf9;
   --bank-border:#d4dade;
   background-color:#dfe4e6;
-  background-image:linear-gradient(135deg,rgba(234,238,240,.70),rgba(223,228,230,.60)),url('assets/backgrounds/kurionyx-relief-orange-teal.png');
+  background-image:linear-gradient(135deg,rgba(242,239,231,.66),rgba(220,226,226,.58)),url('assets/backgrounds/kurionyx-wave-orange-teal-v2.png');
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
@@ -264,7 +264,7 @@
 .toolkit-page input:focus,.toolkit-page select:focus,.toolkit-page textarea:focus{border-color:#f47a24;box-shadow:0 0 0 4px #f47a241c}
 
 @media(max-width:800px){
-  .toolkit-page{background-image:linear-gradient(145deg,rgba(237,240,242,.79),rgba(222,228,230,.73)),url('assets/backgrounds/kurionyx-relief-orange-teal.png');background-position:58% center}
+  .toolkit-page{background-image:linear-gradient(145deg,rgba(242,240,234,.78),rgba(220,227,227,.70)),url('assets/backgrounds/kurionyx-wave-orange-teal-v2.png');background-position:40% center}
   .toolkit-page .tool-main>header{background:#edf0f1d9}
   .toolkit-page .tool-nav.active{background:#fff0e5;color:#c5530d}
 }
