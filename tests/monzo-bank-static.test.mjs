@@ -30,6 +30,11 @@ test('bank summary is owner-only and returns business balances, pots and transac
   assert.match(edgeFunction, /warnings:/);
   assert.match(edgeFunction, /89 \* 24 \* 60 \* 60 \* 1000/);
   assert.doesNotMatch(edgeFunction, /expand\[\]=merchant/);
+  assert.match(edgeFunction, /internalTransfer: \/\^pot_/);
+  assert.match(edgeFunction, /status: matchingRefund \? 'refunded'/);
+  assert.match(edgeFunction, /transaction\.settled \? 'completed' : 'pending'/);
+  assert.match(edgeFunction, /isRefund:/);
+  assert.match(toolkit, /transaction\.status === 'completed' && !transaction\.refunded/);
 });
 
 test('expired Monzo tokens refresh and rotate without reaching the browser', () => {
@@ -49,5 +54,5 @@ test('toolkit provides a responsive Bank page and explicit owner restriction', (
   assert.match(toolkit, /workspaceRole !== 'owner'/);
   assert.match(styles, /\.bank-activity-grid/);
   assert.match(styles, /@media\(max-width:700px\)[\s\S]*\.bank-activity-grid\{grid-template-columns:1fr/);
-  assert.match(serviceWorker, /kurionyx-shell-v10/);
+  assert.match(serviceWorker, /kurionyx-shell-v11/);
 });

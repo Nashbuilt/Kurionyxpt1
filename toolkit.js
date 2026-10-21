@@ -96,7 +96,7 @@ function bankIncomeRecord(transactionId) {
 
 function renderBankSpendChart(transactions) {
   const totals = new Map();
-  transactions.forEach(transaction => {
+  transactions.filter(transaction => transaction.status === 'completed' && !transaction.refunded).forEach(transaction => {
     const linked = bankExpense(transaction.id);
     const category = linked?.category || transaction.category?.replaceAll('_', ' ') || 'Other';
     totals.set(category, (totals.get(category) || 0) + Math.abs(Number(transaction.amount) || 0) / 100);
@@ -111,9 +111,10 @@ function renderBankTransactions(selector, transactions, emptyMessage) {
   $(selector).innerHTML = transactions.length ? transactions.map(transaction => {
     const title = transaction.merchant || transaction.description;
     const linked = bankExpense(transaction.id);
-    const detail = [linked?.category || transaction.category?.replaceAll('_', ' '), shortDate(transaction.settled || transaction.created), linked ? `Linked to ${linked.description}` : transaction.notes].filter(Boolean).join(' · ');
-    const action = transaction.amount < 0 ? `<button class="bank-link-button" data-bank-expense="${esc(transaction.id)}">${linked ? 'Review expense' : 'Create expense'}</button>` : '';
-    return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span>${action}</div><b class="${transaction.amount > 0 ? 'income' : ''}">${transaction.amount > 0 ? '+' : '−'}${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
+    const stateLabel = transaction.refunded ? 'Refunded' : transaction.status === 'pending' ? 'Pending authorisation' : '';
+    const detail = [stateLabel, linked?.category || transaction.category?.replaceAll('_', ' '), shortDate(transaction.settled || transaction.created), linked ? `Linked to ${linked.description}` : transaction.notes].filter(Boolean).join(' · ');
+    const action = transaction.amount < 0 && transaction.status === 'completed' && !transaction.refunded ? `<button class="bank-link-button" data-bank-expense="${esc(transaction.id)}">${linked ? 'Review expense' : 'Create expense'}</button>` : '';
+    return `<article class="bank-transaction ${transaction.refunded ? 'refunded' : transaction.status === 'pending' ? 'pending' : ''}"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span>${action}</div><b class="${transaction.amount > 0 ? 'income' : ''}">${transaction.amount > 0 ? '+' : '−'}${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
   }).join('') : `<p class="bank-empty">${esc(emptyMessage)}</p>`;
 }
 
@@ -121,7 +122,7 @@ function renderBankIncomeTransactions(transactions) {
   $('#bank-income').innerHTML = transactions.length ? transactions.map(transaction => {
     const linked = bankIncomeRecord(transaction.id);
     const title = transaction.merchant || transaction.description;
-    const detail = [linked?.category || 'Unclassified income', shortDate(transaction.settled || transaction.created), linked ? `Recorded as ${linked.description}` : transaction.notes].filter(Boolean).join(' · ');
+    const detail = [transaction.isRefund ? 'Refund or reversal' : linked?.category || 'Unclassified income', shortDate(transaction.settled || transaction.created), linked ? `Recorded as ${linked.description}` : transaction.notes].filter(Boolean).join(' · ');
     return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span><button class="bank-link-button" data-bank-income="${esc(transaction.id)}">${linked ? 'Review income' : 'Add details'}</button></div><b class="income">+${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
   }).join('') : '<p class="bank-empty">No recent incoming payments were returned.</p>';
 }
@@ -130,7 +131,7 @@ function renderBankIncomeChart() {
   const totals = new Map();
   bankIncomeTransactions.forEach(transaction => {
     const linked = bankIncomeRecord(transaction.id);
-    const category = linked?.category || 'Unclassified';
+    const category = linked?.category || (transaction.isRefund ? 'Refund or rebate' : 'Unclassified');
     totals.set(category, (totals.get(category) || 0) + Math.abs(Number(transaction.amount) || 0) / 100);
   });
   const manual = records.income.filter(item => !item.archivedAt && !item.externalTransactionId);
@@ -492,7 +493,7 @@ function openIncome(income = null, transaction = null) {
   form.elements.id.value = income?.id || '';
   form.elements.externalTransactionId.value = income?.externalTransactionId || linkedTransaction?.id || '';
   form.elements.description.value = income?.description || linkedTransaction?.merchant || linkedTransaction?.description || '';
-  form.elements.category.value = income?.category || 'Sales revenue';
+  form.elements.category.value = income?.category || (linkedTransaction?.isRefund ? 'Refund or rebate' : 'Sales revenue');
   form.elements.date.value = income?.date || String(linkedTransaction?.settled || linkedTransaction?.created || new Date().toISOString()).slice(0, 10);
   form.elements.amount.value = income?.amount ?? (linkedTransaction ? Math.abs(Number(linkedTransaction.amount) || 0) / 100 : '');
   form.elements.paymentReference.value = income?.paymentReference || linkedTransaction?.notes || linkedTransaction?.description || '';

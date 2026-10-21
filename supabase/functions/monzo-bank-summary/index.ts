@@ -102,15 +102,31 @@ Deno.serve(async req => {
   const transactions = (Array.isArray(transactionsBody.transactions) ? transactionsBody.transactions : []).map((transaction: Record<string, any>) => ({
     id: String(transaction.id || ''), amount: Number(transaction.amount || 0), currency: String(transaction.currency || 'GBP'),
     description: String(transaction.description || 'Transaction'), merchant: typeof transaction.merchant === 'object' ? String(transaction.merchant?.name || '') : '',
-    category: String(transaction.category || 'general'), created: String(transaction.created || ''), settled: String(transaction.settled || ''), notes: String(transaction.notes || '')
-  }));
+    category: String(transaction.category || 'general'), created: String(transaction.created || ''), settled: String(transaction.settled || ''), notes: String(transaction.notes || ''),
+    isLoad: Boolean(transaction.is_load), declined: Boolean(transaction.decline_reason),
+    internalTransfer: /^pot_[a-z0-9]+$/i.test(String(transaction.description || '').trim())
+  })).filter((transaction: { internalTransfer: boolean; declined: boolean }) => !transaction.internalTransfer && !transaction.declined)
+    .sort((left: { created: string }, right: { created: string }) => Date.parse(right.created) - Date.parse(left.created));
+  const transactionName = (transaction: { merchant: string; description: string }) => (transaction.merchant || transaction.description).trim().toLowerCase().replace(/\s+/g, ' ');
+  const credits = transactions.filter((transaction: { amount: number }) => transaction.amount > 0);
+  const classifiedTransactions = transactions.map((transaction: Record<string, any>) => {
+    const matchingRefund = transaction.amount < 0 && credits.find((credit: Record<string, any>) =>
+      credit.amount === Math.abs(transaction.amount) && transactionName(credit) === transactionName(transaction) && Date.parse(credit.created) >= Date.parse(transaction.created)
+    );
+    return { ...transaction,
+      status: matchingRefund ? 'refunded' : transaction.settled ? 'completed' : 'pending', refunded: Boolean(matchingRefund),
+      isRefund: transaction.amount > 0 && !transaction.isLoad && transactions.some((debit: Record<string, any>) =>
+        debit.amount === -transaction.amount && transactionName(debit) === transactionName(transaction) && Date.parse(transaction.created) >= Date.parse(debit.created)
+      )
+    };
+  });
   await admin.rpc('set_monzo_connection_sync_state', { p_workspace_id: membership.workspace_id, p_status: 'connected', p_synced: true });
   return json({
     account: { name: connection.account_name, type: connection.account_type },
     balance: { available: Number(balance.balance || 0), total: Number(balance.total_balance || balance.balance || 0), currency: String(balance.currency || 'GBP'), spendToday: Number(balance.spend_today || 0) },
     pots,
-    payments: transactions.filter((transaction: { amount: number }) => transaction.amount < 0).slice(0, 12),
-    income: transactions.filter((transaction: { amount: number }) => transaction.amount > 0).slice(0, 12),
+    payments: classifiedTransactions.filter((transaction: { amount: number }) => transaction.amount < 0).slice(0, 12),
+    income: classifiedTransactions.filter((transaction: { amount: number }) => transaction.amount > 0).slice(0, 12),
     warnings: [
       ...(!potsResponse.ok ? ['Monzo did not make pots available for this account.'] : []),
       ...(!transactionsResponse.ok ? ['Monzo did not make recent transactions available for this session.'] : [])
