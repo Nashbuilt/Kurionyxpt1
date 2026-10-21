@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { calculateProfitability, groupExpenses, landedUnitCost, mixedTotal } from '../analysis-tools.js';
+import { businessPerformance, calculateProfitability, categorySpend, groupExpenses, landedUnitCost, mixedTotal } from '../analysis-tools.js';
 
 const [html, toolkit] = await Promise.all([
   readFile(new URL('../toolkit.html', import.meta.url), 'utf8'),
@@ -43,6 +43,24 @@ test('expense analysis excludes demonstration and unverified records by default'
   const expenses = [{ date: '2026-10-01', amount: 10, category: 'Software', dataStatus: 'verified' }, { date: '2026-10-02', amount: 100, category: 'Demo', dataStatus: 'demonstration' }, { date: '2026-10-03', amount: 30, category: 'Other', dataStatus: 'unverified' }];
   assert.equal(groupExpenses(expenses, 'month')[0].total, 10);
   assert.equal(groupExpenses(expenses, 'month', false)[0].total, 140);
+  assert.deepEqual(categorySpend(expenses), [{ category: 'Software', total: 10 }]);
+});
+
+test('business performance compares confirmed turnover, spend and estimated profit without double-counting landed costs', () => {
+  const stock = [{ id: 1, units: 8, unitCost: 5, shippingPaid: 0, otherFees: 0 }];
+  const movements = [{ stockItemId: 1, type: 'receipt', quantityDelta: 10 }];
+  const sales = [{ stockItemId: 1, units: 2, unitSalePrice: 10, marketplaceFees: 2, dataStatus: 'verified' }];
+  const expenses = [
+    { stockItemId: null, amount: 3, includeInLandedCost: false, dataStatus: 'verified' },
+    { stockItemId: 1, amount: 4, includeInLandedCost: true, dataStatus: 'verified' },
+    { stockItemId: null, amount: 100, includeInLandedCost: false, dataStatus: 'demonstration' }
+  ];
+  const result = businessPerformance(stock, sales, expenses, movements);
+  assert.equal(result.turnover, 20);
+  assert.equal(result.estimatedCostOfGoods, 10.8);
+  assert.equal(result.recordedSpend, 7);
+  assert.equal(result.operatingSpend, 3);
+  assert.ok(Math.abs(result.estimatedProfit - 4.2) < 0.000001);
 });
 
 test('toolkit exposes calculator and spending tabs with live stock costing', () => {

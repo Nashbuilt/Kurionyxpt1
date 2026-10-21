@@ -25,7 +25,11 @@ The dashboard groups variations and colours by their category. Confirmed KPIs in
 
 The internal toolkit also includes a browser-local profitability calculator that accepts mixed per-unit and whole-batch inputs, plus a spending view that groups the existing expense ledger by day, week or month. Stock landed unit cost allocates recorded supplier shipping and product fees across opening-balance and receipt units so selling stock does not inflate the per-unit cost.
 
-Expenses can also be linked to a stock item and explicitly included in its landed unit cost. Historical expenses remain unchanged, and general operating expenses remain available in the main expense ledger. A Monzo Developer API configuration record and idempotent import fields are prepared, but OAuth and transaction syncing are not enabled until an authorised adult creates a Monzo client and server-side credentials are configured; see `docs/MONZO_INTEGRATION.md`.
+Expenses can also be linked to a stock item and explicitly included in its landed unit cost. Historical expenses remain unchanged, and general operating expenses remain available in the main expense ledger. The owner-only Monzo Developer API connection provides read-only business balances, pots and recent transactions through server-side credentials; see `docs/MONZO_INTEGRATION.md`.
+
+The reviewed bank reconciliation migration is `supabase/migrations/20261021121542_bank_expense_reconciliation.sql`. It lets the workspace owner match a Monzo payment to one expense, keeps the payment reference visible on both Bank and Expenses, and seeds useful expense categories without rewriting historical values. The Expenses page compares confirmed turnover, recorded spend, estimated profit and return on spend using currently available sales and stock-cost data. Follow `docs/BANK_EXPENSE_RECONCILIATION.md` before applying or deploying it.
+
+The additive `supabase/migrations/20261021123420_bank_income_classification.sql` migration adds an owner-only income register, references and classifications for incoming Monzo payments, plus a separate income-category chart. Income labels are operational bookkeeping and do not define legal ownership.
 
 ## Stage 1 checks
 
