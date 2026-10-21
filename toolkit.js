@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { initSettings } from './settings.js';
-import { calculateProfitability, groupExpenses, landedUnitCost, purchasedUnitsFor } from './analysis-tools.js';
+import { businessPerformance, calculateProfitability, categorySpend, groupExpenses, landedUnitCost, purchasedUnitsFor } from './analysis-tools.js';
 
 const supabase = createClient(
   'https://wszgmnngwnhtavuxqqyk.supabase.co',
@@ -12,6 +12,7 @@ let workspaceId = null;
 let workspaceRole = null;
 let bankLoaded = false;
 let bankLoading = false;
+let bankTransactions = [];
 
 const $ = selector => document.querySelector(selector);
 const toolkitApp = $('#toolkit-app');
@@ -67,11 +68,46 @@ function view(name) {
   if (name === 'bank' && !bankLoaded) loadBankSummary();
 }
 
+const chartColours = ['#103f47', '#f47a24', '#6f8f94', '#d6a56f', '#7c6f91', '#4f7468', '#c66f52', '#89969a'];
+
+function renderDonut(chartSelector, centreSelector, legendSelector, items, total, formatter = money) {
+  let position = 0;
+  const segments = items.map((item, index) => {
+    const start = position;
+    position += total ? item.total / total * 100 : 0;
+    return `${chartColours[index % chartColours.length]} ${start.toFixed(2)}% ${position.toFixed(2)}%`;
+  });
+  $(chartSelector).style.background = segments.length ? `conic-gradient(${segments.join(',')})` : '#e7ebe7';
+  $(centreSelector).textContent = formatter(total);
+  $(legendSelector).innerHTML = items.length
+    ? items.map((item, index) => `<div><i style="background:${chartColours[index % chartColours.length]}"></i><span>${esc(item.category)}</span><strong>${formatter(item.total)}</strong></div>`).join('')
+    : '<p class="empty compact">No matching records yet.</p>';
+}
+
+function bankExpense(transactionId) {
+  return records.expenses.find(item => item.externalTransactionId === transactionId && !item.archivedAt);
+}
+
+function renderBankSpendChart(transactions) {
+  const totals = new Map();
+  transactions.forEach(transaction => {
+    const linked = bankExpense(transaction.id);
+    const category = linked?.category || transaction.category?.replaceAll('_', ' ') || 'Other';
+    totals.set(category, (totals.get(category) || 0) + Math.abs(Number(transaction.amount) || 0) / 100);
+  });
+  const items = [...totals].map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+  const total = items.reduce((sum, item) => sum + item.total, 0);
+  $('#bank-spend-total').textContent = money(total);
+  renderDonut('#bank-category-chart', '#bank-category-centre', '#bank-category-legend', items, total);
+}
+
 function renderBankTransactions(selector, transactions, emptyMessage) {
   $(selector).innerHTML = transactions.length ? transactions.map(transaction => {
     const title = transaction.merchant || transaction.description;
-    const detail = [transaction.category?.replaceAll('_', ' '), shortDate(transaction.settled || transaction.created)].filter(Boolean).join(' · ');
-    return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div><b class="${transaction.amount > 0 ? 'income' : ''}">${transaction.amount > 0 ? '+' : '−'}${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
+    const linked = bankExpense(transaction.id);
+    const detail = [linked?.category || transaction.category?.replaceAll('_', ' '), shortDate(transaction.settled || transaction.created), linked ? `Linked to ${linked.description}` : transaction.notes].filter(Boolean).join(' · ');
+    const action = transaction.amount < 0 ? `<button class="bank-link-button" data-bank-expense="${esc(transaction.id)}">${linked ? 'Review expense' : 'Create expense'}</button>` : '';
+    return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span>${action}</div><b class="${transaction.amount > 0 ? 'income' : ''}">${transaction.amount > 0 ? '+' : '−'}${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
   }).join('') : `<p class="bank-empty">${esc(emptyMessage)}</p>`;
 }
 
@@ -112,8 +148,11 @@ async function loadBankSummary(force = false) {
     warning.hidden = !data.warnings?.length;
     warning.textContent = data.warnings?.join(' ') || '';
     $('#bank-pots').innerHTML = data.pots.length ? data.pots.map(pot => `<article><span>${esc(pot.name)}</span><strong>${moneyMinor(pot.balance, pot.currency)}</strong></article>`).join('') : '<p class="bank-empty">No active pots were returned.</p>';
-    renderBankTransactions('#bank-payments', data.payments || [], 'No recent outgoing payments were returned.');
+    bankTransactions = data.payments || [];
+    renderBankTransactions('#bank-payments', bankTransactions, 'No recent outgoing payments were returned.');
     renderBankTransactions('#bank-income', data.income || [], 'No recent incoming payments were returned.');
+    renderBankSpendChart(bankTransactions);
+    bindRenderedActions();
     content.hidden = false;
     bankLoaded = true;
   } catch (error) {
@@ -130,7 +169,7 @@ async function loadBankSummary(force = false) {
 async function loadWorkspaceData() {
   const [stockResult, expenseResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
-    supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
+    supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, payment_reference, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
     supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at').order('sold_at', { ascending: false }),
     supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, final_mile_carrier, final_mile_tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200),
@@ -152,7 +191,7 @@ async function loadWorkspaceData() {
     id: item.id, description: item.description, category: item.category, date: item.expense_date,
     amount: Number(item.amount), stockItemId: item.stock_item_id,
     includeInLandedCost: item.include_in_landed_cost, sourceProvider: item.source_provider,
-    externalTransactionId: item.external_transaction_id, dataStatus: item.data_status,
+    externalTransactionId: item.external_transaction_id, paymentReference: item.payment_reference, dataStatus: item.data_status,
     archivedAt: item.archived_at, createdAt: item.created_at
   }));
   records.sales = (salesResult.data || []).map(item => ({
@@ -352,18 +391,52 @@ function renderShipments() {
 
 function renderExpenses() {
   const activeExpenses = records.expenses.filter(item => !item.archivedAt);
+  const performance = businessPerformance(records.stock, records.sales, records.expenses, records.movements);
+  const categories = categorySpend(records.expenses);
+  const categoryTotal = categories.reduce((sum, item) => sum + item.total, 0);
+  $('#expense-turnover').textContent = money(performance.turnover);
+  $('#expense-recorded-spend').textContent = money(performance.recordedSpend);
+  $('#expense-estimated-profit').textContent = money(performance.estimatedProfit);
+  $('#expense-estimated-profit').classList.toggle('negative-value', performance.estimatedProfit < 0);
+  $('#expense-return-on-spend').textContent = `${performance.returnOnSpend.toFixed(1)}%`;
+  $('#expense-return-on-spend').classList.toggle('negative-value', performance.returnOnSpend < 0);
+  $('#expense-category-total').textContent = money(categoryTotal);
+  renderDonut('#expense-category-chart', '#expense-category-centre', '#expense-category-legend', categories, categoryTotal);
+  const bars = [
+    ['Turnover', performance.turnover],
+    ['Cost of goods', performance.estimatedCostOfGoods],
+    ['Operating spend', performance.operatingSpend],
+    ['Estimated profit', performance.estimatedProfit]
+  ];
+  const scale = Math.max(1, ...bars.map(([, value]) => Math.abs(value)));
+  $('#expense-performance-bars').innerHTML = bars.map(([label, value], index) => `<div><span>${esc(label)}</span><div><i class="${value < 0 ? 'negative' : ''}" style="width:${Math.max(2, Math.abs(value) / scale * 100)}%;background:${chartColours[index % chartColours.length]}"></i></div><strong class="${value < 0 ? 'negative-value' : ''}">${money(value)}</strong></div>`).join('');
   $('#expense-table').innerHTML = activeExpenses.length
-    ? activeExpenses.map(item => { const stock = stockById(item.stockItemId); return `<tr><td><strong>${esc(item.description)}</strong>${item.sourceProvider === 'monzo' ? '<small class="cell-detail">Imported from Monzo</small>' : ''}</td><td>${esc(item.category)}</td><td>${stock ? `<strong>${esc(stock.product)}</strong><small class="cell-detail">${item.includeInLandedCost ? 'Included in landed cost' : 'Linked only'}</small>` : '—'}</td><td>${shortDate(item.date)}</td><td>${money(item.amount)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span><button class="review-status" data-classify-record="expense" data-record-id="${item.id}" data-current-status="${esc(item.dataStatus)}">Review</button></td><td><button class="delete-row" data-archive-record="expense" data-record-id="${item.id}">Archive</button></td></tr>`; }).join('')
-    : '<tr><td colspan="7" class="empty">No expenses recorded yet.</td></tr>';
+    ? activeExpenses.map(item => { const stock = stockById(item.stockItemId); const reference = item.paymentReference || (item.externalTransactionId ? 'Bank payment linked' : '—'); return `<tr><td><strong>${esc(item.description)}</strong>${item.sourceProvider === 'monzo' ? '<small class="cell-detail">Matched to Monzo</small>' : ''}</td><td>${esc(item.category)}</td><td><strong>${esc(reference)}</strong>${item.externalTransactionId ? '<small class="cell-detail">Reconciled</small>' : ''}</td><td>${stock ? `<strong>${esc(stock.product)}</strong><small class="cell-detail">${item.includeInLandedCost ? 'Included in landed cost' : 'Linked only'}</small>` : '—'}</td><td>${shortDate(item.date)}</td><td>${money(item.amount)}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span><button class="review-status" data-classify-record="expense" data-record-id="${item.id}" data-current-status="${esc(item.dataStatus)}">Review</button></td><td>${actionMenu(`<button data-edit-expense="${item.id}">Edit & reconcile</button><button class="delete-row" data-archive-record="expense" data-record-id="${item.id}">Archive</button>`)}</td></tr>`; }).join('')
+    : '<tr><td colspan="8" class="empty">No expenses recorded yet.</td></tr>';
 }
 
-function openExpense(stockItemId = '') {
+function openExpense(stockItemId = '', expense = null, transaction = null) {
   const form = $('#expense-form');
   form.reset();
-  form.elements.date.value = new Date().toISOString().slice(0, 10);
+  const linkedTransaction = transaction || bankTransactions.find(item => item.id === expense?.externalTransactionId) || null;
+  form.elements.id.value = expense?.id || '';
+  form.elements.externalTransactionId.value = expense?.externalTransactionId || linkedTransaction?.id || '';
+  form.elements.description.value = expense?.description || linkedTransaction?.merchant || linkedTransaction?.description || '';
+  form.elements.category.value = expense?.category || 'Other';
+  form.elements.date.value = expense?.date || String(linkedTransaction?.settled || linkedTransaction?.created || new Date().toISOString()).slice(0, 10);
+  form.elements.amount.value = expense?.amount ?? (linkedTransaction ? Math.abs(Number(linkedTransaction.amount) || 0) / 100 : '');
+  form.elements.paymentReference.value = expense?.paymentReference || linkedTransaction?.notes || linkedTransaction?.description || '';
+  form.elements.dataStatus.value = expense?.dataStatus || (linkedTransaction ? 'verified' : 'unverified');
   const activeStock = records.stock.filter(item => !item.archivedAt);
-  form.elements.stockItemId.innerHTML = `<option value="">General expense — no stock link</option>${activeStock.map(item => `<option value="${item.id}" ${String(item.id) === String(stockItemId) ? 'selected' : ''}>${esc(item.product)} — ${esc(item.sku)}</option>`).join('')}`;
-  form.elements.includeInLandedCost.checked = Boolean(stockItemId);
+  const selectedStockId = expense?.stockItemId || stockItemId;
+  form.elements.stockItemId.innerHTML = `<option value="">General expense — no stock link</option>${activeStock.map(item => `<option value="${item.id}" ${String(item.id) === String(selectedStockId) ? 'selected' : ''}>${esc(item.product)} — ${esc(item.sku)}</option>`).join('')}`;
+  form.elements.includeInLandedCost.checked = expense?.includeInLandedCost ?? Boolean(stockItemId);
+  const currentTransactionId = expense?.externalTransactionId || linkedTransaction?.id || '';
+  const availableTransactions = bankTransactions.filter(item => !bankExpense(item.id) || item.id === currentTransactionId);
+  form.elements.bankTransactionId.innerHTML = `<option value="">No bank payment linked</option>${availableTransactions.map(item => `<option value="${esc(item.id)}" ${item.id === currentTransactionId ? 'selected' : ''}>${esc(item.merchant || item.description)} — ${moneyMinor(Math.abs(item.amount), item.currency)} — ${shortDate(item.settled || item.created)}</option>`).join('')}`;
+  form.elements.bankTransactionId.disabled = workspaceRole !== 'owner' || !bankLoaded;
+  form.elements.paymentReference.disabled = workspaceRole !== 'owner' && Boolean(currentTransactionId);
+  $('#expense-modal-title').textContent = expense ? 'Edit expense' : linkedTransaction ? 'Create expense from payment' : 'Add expense';
   prepareDialog(dialogs.expense);
 }
 
@@ -379,6 +452,8 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-sell-stock]').forEach(button => button.onclick = () => openSale(button.dataset.sellStock));
   document.querySelectorAll('[data-move-stock]').forEach(button => button.onclick = () => openMovement(stockById(button.dataset.moveStock)));
   document.querySelectorAll('[data-stock-expense]').forEach(button => button.onclick = () => openExpense(button.dataset.stockExpense));
+  document.querySelectorAll('[data-edit-expense]').forEach(button => button.onclick = () => openExpense('', records.expenses.find(item => String(item.id) === button.dataset.editExpense)));
+  document.querySelectorAll('[data-bank-expense]').forEach(button => { button.onclick = () => { const transaction = bankTransactions.find(item => item.id === button.dataset.bankExpense); openExpense('', bankExpense(button.dataset.bankExpense), transaction); }; });
   document.querySelectorAll('[data-archive-stock]').forEach(button => button.onclick = () => archiveStock(button.dataset.archiveStock));
   document.querySelectorAll('[data-edit-shipment]').forEach(button => button.onclick = () => openShipment(records.shipments.find(item => String(item.id) === button.dataset.editShipment)));
   document.querySelectorAll('[data-add-tracking]').forEach(button => button.onclick = () => openTracking(records.shipments.find(item => String(item.id) === button.dataset.addTracking)));
@@ -398,6 +473,10 @@ function render() {
   renderSpending();
   renderCalculator();
   renderSaleOptions();
+  if (bankLoaded) {
+    renderBankTransactions('#bank-payments', bankTransactions, 'No recent outgoing payments were returned.');
+    renderBankSpendChart(bankTransactions);
+  }
   bindRenderedActions();
 }
 
@@ -668,23 +747,43 @@ $('#expense-form').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const values = new FormData(form);
+  const id = values.get('id');
   const stockItemId = values.get('stockItemId');
   const includeInLandedCost = values.get('includeInLandedCost') === 'on';
   if (includeInLandedCost && !stockItemId) {
     form.querySelector('[data-form-message]').textContent = 'Choose a stock item before including an expense in landed cost.';
     return;
   }
-  const query = supabase.from('expenses').insert({
-    workspace_id: workspaceId,
+  const payload = {
     description: String(values.get('description')).trim(),
     category: String(values.get('category')),
     expense_date: String(values.get('date')),
     amount: Number(values.get('amount')),
     stock_item_id: stockItemId ? Number(stockItemId) : null,
     include_in_landed_cost: includeInLandedCost,
-    data_status: String(values.get('dataStatus'))
-  });
-  await saveForm(form, query, 'Expense saved.', dialogs.expense);
+    payment_reference: String(form.elements.paymentReference.value || '').trim() || null
+  };
+  const selectedTransactionId = String(form.elements.bankTransactionId.value || '');
+  const existingTransactionId = String(values.get('externalTransactionId') || '');
+  const usesBankReconciliation = workspaceRole === 'owner' && (selectedTransactionId || existingTransactionId);
+  const query = usesBankReconciliation
+    ? supabase.rpc('save_bank_expense', {
+      p_workspace_id: workspaceId,
+      p_expense_id: id ? Number(id) : null,
+      p_description: payload.description,
+      p_category: payload.category,
+      p_expense_date: payload.expense_date,
+      p_amount: payload.amount,
+      p_stock_item_id: payload.stock_item_id,
+      p_include_in_landed_cost: payload.include_in_landed_cost,
+      p_data_status: String(values.get('dataStatus')),
+      p_external_transaction_id: selectedTransactionId || null,
+      p_payment_reference: payload.payment_reference
+    })
+    : id
+      ? supabase.from('expenses').update(payload).eq('id', id).eq('workspace_id', workspaceId)
+      : supabase.from('expenses').insert({ ...payload, workspace_id: workspaceId, data_status: String(values.get('dataStatus')) });
+  await saveForm(form, query, id ? 'Expense updated.' : selectedTransactionId ? 'Payment linked and expense created.' : 'Expense saved.', dialogs.expense);
 });
 
 async function updateShipmentStatus(id, status) {
@@ -811,6 +910,18 @@ $('#spending-period').addEventListener('change', renderSpending);
 $('#spending-confirmed-only').addEventListener('change', renderSpending);
 $('#expense-form').elements.stockItemId.addEventListener('change', event => {
   if (!event.currentTarget.value) $('#expense-form').elements.includeInLandedCost.checked = false;
+});
+
+$('#expense-form').elements.bankTransactionId.addEventListener('change', event => {
+  const form = $('#expense-form');
+  const transaction = bankTransactions.find(item => item.id === event.currentTarget.value);
+  form.elements.externalTransactionId.value = transaction?.id || '';
+  if (!transaction) return;
+  form.elements.description.value = transaction.merchant || transaction.description || form.elements.description.value;
+  form.elements.amount.value = Math.abs(Number(transaction.amount) || 0) / 100;
+  form.elements.date.value = String(transaction.settled || transaction.created || form.elements.date.value).slice(0, 10);
+  form.elements.paymentReference.value = transaction.notes || transaction.description || '';
+  form.elements.dataStatus.value = 'verified';
 });
 ['initialUnits', 'unitCost', 'shippingPaid', 'otherFees'].forEach(name => $('#stock-form').elements[name].addEventListener('input', updateStockCostPreview));
 $('#stock-form').elements.images.addEventListener('change', event => {

@@ -250,7 +250,7 @@
   --bank-card:#f8faf9;
   --bank-border:#d4dade;
   background-color:#dfe4e6;
-  background-image:linear-gradient(135deg,rgba(242,239,231,.66),rgba(220,226,226,.58)),url('assets/backgrounds/kurionyx-wave-orange-teal-v2.png');
+  background-image:linear-gradient(135deg,rgba(242,239,231,.66),rgba(220,226,226,.58)),url('assets/backgrounds/kurionyx-wave-orange-teal-v3.png');
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
@@ -264,7 +264,12 @@
 .toolkit-page input:focus,.toolkit-page select:focus,.toolkit-page textarea:focus{border-color:#f47a24;box-shadow:0 0 0 4px #f47a241c}
 
 @media(max-width:800px){
-  .toolkit-page{background-image:linear-gradient(145deg,rgba(242,240,234,.78),rgba(220,227,227,.70)),url('assets/backgrounds/kurionyx-wave-orange-teal-v2.png');background-position:40% center}
+  .toolkit-page{background-image:linear-gradient(145deg,rgba(242,240,234,.78),rgba(220,227,227,.70)),url('assets/backgrounds/kurionyx-wave-orange-teal-v3.png');background-position:40% center}
   .toolkit-page .tool-main>header{background:#edf0f1d9}
   .toolkit-page .tool-nav.active{background:#fff0e5;color:#c5530d}
 }
+
+/* Bank reconciliation and financial performance */
+.finance-overview-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr);gap:16px;margin-bottom:16px}.finance-chart-card{min-width:0;padding:22px;border:1px solid rgba(255,255,255,.68);border-radius:22px;background:rgba(248,250,249,.78);box-shadow:0 12px 35px #103f470d;backdrop-filter:blur(22px) saturate(125%);-webkit-backdrop-filter:blur(22px) saturate(125%)}.finance-chart-card h3{font:650 21px Manrope;margin:4px 0}.finance-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}.finance-metrics article:first-child{background:var(--bank-ink)}.performance-bars{display:grid;gap:15px;margin-top:24px}.performance-bars>div{display:grid;grid-template-columns:120px minmax(100px,1fr) auto;align-items:center;gap:12px}.performance-bars span{font-size:12px;color:var(--muted)}.performance-bars>div>div{height:11px;border-radius:99px;background:#e4e8e8;overflow:hidden}.performance-bars i{display:block;height:100%;min-width:2px;border-radius:inherit}.performance-bars i.negative{background:#b94d43!important}.performance-bars strong{font-size:12px;text-align:right}.compact-pie{grid-template-columns:170px 1fr;gap:20px;padding-top:20px}.compact-pie .donut-chart{width:165px;height:165px}.compact-pie .donut-chart:after{inset:35px}.compact-pie .donut-chart strong{font-size:22px}.negative-value{color:#b33e38!important}.bank-link-button{border:0;border-radius:9px;background:#e6ecec;color:var(--bank-ink);font-weight:700;font-size:10px;padding:7px 9px;margin-top:8px}.bank-link-button:hover{background:var(--bank-mint)}.bank-spend-visual{overflow:hidden}.bank-spend-visual .chart-legend{max-height:190px;overflow:auto;padding-right:4px}
+@media(max-width:1050px){.finance-overview-grid{grid-template-columns:1fr}.finance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.finance-metrics{grid-template-columns:1fr 1fr}.finance-chart-card{padding:17px;border-radius:19px}.performance-bars>div{grid-template-columns:92px minmax(60px,1fr);gap:8px}.performance-bars strong{grid-column:2;text-align:left}.compact-pie{grid-template-columns:1fr;justify-items:center}.compact-pie .chart-legend{width:100%}.bank-link-button{min-height:36px}.finance-metrics article{min-height:132px!important}}

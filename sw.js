@@ -1,11 +1,11 @@
-const CACHE_NAME = 'kurionyx-shell-v7';
+const CACHE_NAME = 'kurionyx-shell-v8';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/login.html',
   '/toolkit.html',
   '/styles.css',
-  '/assets/backgrounds/kurionyx-wave-orange-teal-v2.png',
+  '/assets/backgrounds/kurionyx-wave-orange-teal-v3.png',
   '/auth.js',
   '/toolkit.js',
   '/settings.js',

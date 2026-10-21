@@ -83,3 +83,37 @@ export function groupExpenses(expenses, period = 'month', confirmedOnly = true) 
     });
   return [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
 }
+
+export function categorySpend(expenses = [], confirmedOnly = true) {
+  return Object.entries(expenses
+    .filter(item => !item.archivedAt && (!confirmedOnly || item.dataStatus === 'verified'))
+    .reduce((totals, item) => {
+      const category = item.category || 'Other';
+      totals[category] = (totals[category] || 0) + Math.max(0, finite(item.amount));
+      return totals;
+    }, {}))
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
+export function businessPerformance(stock = [], sales = [], expenses = [], movements = []) {
+  const confirmedSales = sales.filter(item => item.dataStatus === 'verified' && !item.archivedAt);
+  const confirmedExpenses = expenses.filter(item => item.dataStatus === 'verified' && !item.archivedAt);
+  const stockById = new Map(stock.map(item => [String(item.id), item]));
+  const turnover = confirmedSales.reduce((sum, sale) => sum + Math.max(0, finite(sale.units)) * Math.max(0, finite(sale.unitSalePrice)), 0);
+  const marketplaceFees = confirmedSales.reduce((sum, sale) => sum + Math.max(0, finite(sale.marketplaceFees)), 0);
+  const estimatedCostOfGoods = confirmedSales.reduce((sum, sale) => {
+    const item = stockById.get(String(sale.stockItemId));
+    return sum + (item ? Math.max(0, finite(sale.units)) * landedUnitCost(item, movements, expenses, true) : 0);
+  }, 0);
+  const recordedSpend = confirmedExpenses.reduce((sum, item) => sum + Math.max(0, finite(item.amount)), 0);
+  const operatingSpend = confirmedExpenses
+    .filter(item => !item.includeInLandedCost)
+    .reduce((sum, item) => sum + Math.max(0, finite(item.amount)), 0);
+  const grossProfit = turnover - estimatedCostOfGoods - marketplaceFees;
+  const estimatedProfit = grossProfit - operatingSpend;
+  const totalCostBasis = estimatedCostOfGoods + marketplaceFees + operatingSpend;
+  const returnOnSpend = totalCostBasis > 0 ? estimatedProfit / totalCostBasis * 100 : 0;
+  const profitToSpend = operatingSpend > 0 ? estimatedProfit / operatingSpend : 0;
+  return { turnover, marketplaceFees, estimatedCostOfGoods, recordedSpend, operatingSpend, grossProfit, estimatedProfit, returnOnSpend, profitToSpend };
+}
