@@ -49,5 +49,5 @@ test('toolkit provides a responsive Bank page and explicit owner restriction', (
   assert.match(toolkit, /workspaceRole !== 'owner'/);
   assert.match(styles, /\.bank-activity-grid/);
   assert.match(styles, /@media\(max-width:700px\)[\s\S]*\.bank-activity-grid\{grid-template-columns:1fr/);
-  assert.match(serviceWorker, /kurionyx-shell-v8/);
+  assert.match(serviceWorker, /kurionyx-shell-v9/);
 });

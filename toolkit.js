@@ -7,12 +7,13 @@ const supabase = createClient(
   'sb_publishable_kqyjZOBwyt0rJGEQao-pgw_uiEO8-Nf'
 );
 
-const records = { stock: [], expenses: [], sales: [], shipments: [], movements: [], stockImages: [], trackingEvents: [] };
+const records = { stock: [], expenses: [], income: [], sales: [], shipments: [], movements: [], stockImages: [], trackingEvents: [] };
 let workspaceId = null;
 let workspaceRole = null;
 let bankLoaded = false;
 let bankLoading = false;
 let bankTransactions = [];
+let bankIncomeTransactions = [];
 
 const $ = selector => document.querySelector(selector);
 const toolkitApp = $('#toolkit-app');
@@ -25,6 +26,7 @@ const dialogs = {
   sale: $('#sale-modal'),
   shipment: $('#shipment-modal'),
   expense: $('#expense-modal'),
+  income: $('#income-modal'),
   movement: $('#movement-modal'),
   tracking: $('#tracking-modal')
 };
@@ -88,6 +90,10 @@ function bankExpense(transactionId) {
   return records.expenses.find(item => item.externalTransactionId === transactionId && !item.archivedAt);
 }
 
+function bankIncomeRecord(transactionId) {
+  return records.income.find(item => item.externalTransactionId === transactionId && !item.archivedAt);
+}
+
 function renderBankSpendChart(transactions) {
   const totals = new Map();
   transactions.forEach(transaction => {
@@ -109,6 +115,35 @@ function renderBankTransactions(selector, transactions, emptyMessage) {
     const action = transaction.amount < 0 ? `<button class="bank-link-button" data-bank-expense="${esc(transaction.id)}">${linked ? 'Review expense' : 'Create expense'}</button>` : '';
     return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span>${action}</div><b class="${transaction.amount > 0 ? 'income' : ''}">${transaction.amount > 0 ? '+' : '−'}${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
   }).join('') : `<p class="bank-empty">${esc(emptyMessage)}</p>`;
+}
+
+function renderBankIncomeTransactions(transactions) {
+  $('#bank-income').innerHTML = transactions.length ? transactions.map(transaction => {
+    const linked = bankIncomeRecord(transaction.id);
+    const title = transaction.merchant || transaction.description;
+    const detail = [linked?.category || 'Unclassified income', shortDate(transaction.settled || transaction.created), linked ? `Recorded as ${linked.description}` : transaction.notes].filter(Boolean).join(' · ');
+    return `<article class="bank-transaction"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span><button class="bank-link-button" data-bank-income="${esc(transaction.id)}">${linked ? 'Review income' : 'Add details'}</button></div><b class="income">+${moneyMinor(Math.abs(transaction.amount), transaction.currency)}</b></article>`;
+  }).join('') : '<p class="bank-empty">No recent incoming payments were returned.</p>';
+}
+
+function renderBankIncomeChart() {
+  const totals = new Map();
+  bankIncomeTransactions.forEach(transaction => {
+    const linked = bankIncomeRecord(transaction.id);
+    const category = linked?.category || 'Unclassified';
+    totals.set(category, (totals.get(category) || 0) + Math.abs(Number(transaction.amount) || 0) / 100);
+  });
+  const manual = records.income.filter(item => !item.archivedAt && !item.externalTransactionId);
+  manual.forEach(item => totals.set(item.category, (totals.get(item.category) || 0) + item.amount));
+  const items = [...totals].map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+  const total = items.reduce((sum, item) => sum + item.total, 0);
+  $('#bank-income-total').textContent = money(total);
+  renderDonut('#bank-income-chart', '#bank-income-centre', '#bank-income-legend', items, total);
+}
+
+function renderIncomeLedger() {
+  const active = records.income.filter(item => !item.archivedAt);
+  $('#income-table').innerHTML = active.length ? active.map(item => `<tr><td data-label="Description"><strong>${esc(item.description)}</strong>${item.sourceProvider === 'monzo' ? '<small class="cell-detail">Matched to Monzo</small>' : '<small class="cell-detail">Manual record</small>'}</td><td data-label="Category"><span class="category-chip">${esc(item.category)}</span></td><td data-label="Reference">${esc(item.paymentReference || '—')}</td><td data-label="Date">${shortDate(item.date)}</td><td data-label="Amount"><strong>${money(item.amount)}</strong></td><td data-label="Status"><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td>${actionMenu(`<button data-edit-income="${item.id}">Edit details</button><button class="delete-row" data-archive-income="${item.id}">Archive</button>`)}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No income has been classified yet.</td></tr>';
 }
 
 async function loadBankSummary(force = false) {
@@ -149,9 +184,12 @@ async function loadBankSummary(force = false) {
     warning.textContent = data.warnings?.join(' ') || '';
     $('#bank-pots').innerHTML = data.pots.length ? data.pots.map(pot => `<article><span>${esc(pot.name)}</span><strong>${moneyMinor(pot.balance, pot.currency)}</strong></article>`).join('') : '<p class="bank-empty">No active pots were returned.</p>';
     bankTransactions = data.payments || [];
+    bankIncomeTransactions = data.income || [];
     renderBankTransactions('#bank-payments', bankTransactions, 'No recent outgoing payments were returned.');
-    renderBankTransactions('#bank-income', data.income || [], 'No recent incoming payments were returned.');
+    renderBankIncomeTransactions(bankIncomeTransactions);
     renderBankSpendChart(bankTransactions);
+    renderBankIncomeChart();
+    renderIncomeLedger();
     bindRenderedActions();
     content.hidden = false;
     bankLoaded = true;
@@ -167,9 +205,10 @@ async function loadBankSummary(force = false) {
 }
 
 async function loadWorkspaceData() {
-  const [stockResult, expenseResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult] = await Promise.all([
+  const [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, payment_reference, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
+    supabase.from('income_records').select('id, description, category, income_date, amount, payment_reference, notes, source_provider, external_transaction_id, data_status, archived_at, created_at').order('income_date', { ascending: false }),
     supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at').order('sold_at', { ascending: false }),
     supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, final_mile_carrier, final_mile_tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
     supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200),
@@ -177,7 +216,7 @@ async function loadWorkspaceData() {
     supabase.from('shipment_tracking_events').select('id, shipment_id, event_status, description, location, occurred_at, source, created_at').order('occurred_at', { ascending: false })
   ]);
 
-  for (const result of [stockResult, expenseResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult]) {
+  for (const result of [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult]) {
     if (result.error) throw result.error;
   }
 
@@ -193,6 +232,12 @@ async function loadWorkspaceData() {
     includeInLandedCost: item.include_in_landed_cost, sourceProvider: item.source_provider,
     externalTransactionId: item.external_transaction_id, paymentReference: item.payment_reference, dataStatus: item.data_status,
     archivedAt: item.archived_at, createdAt: item.created_at
+  }));
+  records.income = (incomeResult.data || []).map(item => ({
+    id: item.id, description: item.description, category: item.category, date: item.income_date,
+    amount: Number(item.amount), paymentReference: item.payment_reference, notes: item.notes,
+    sourceProvider: item.source_provider, externalTransactionId: item.external_transaction_id,
+    dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at
   }));
   records.sales = (salesResult.data || []).map(item => ({
     id: item.id, stockItemId: item.stock_item_id, units: Number(item.units), unitSalePrice: Number(item.unit_sale_price),
@@ -440,6 +485,27 @@ function openExpense(stockItemId = '', expense = null, transaction = null) {
   prepareDialog(dialogs.expense);
 }
 
+function openIncome(income = null, transaction = null) {
+  const form = $('#income-form');
+  form.reset();
+  const linkedTransaction = transaction || bankIncomeTransactions.find(item => item.id === income?.externalTransactionId) || null;
+  form.elements.id.value = income?.id || '';
+  form.elements.externalTransactionId.value = income?.externalTransactionId || linkedTransaction?.id || '';
+  form.elements.description.value = income?.description || linkedTransaction?.merchant || linkedTransaction?.description || '';
+  form.elements.category.value = income?.category || 'Sales revenue';
+  form.elements.date.value = income?.date || String(linkedTransaction?.settled || linkedTransaction?.created || new Date().toISOString()).slice(0, 10);
+  form.elements.amount.value = income?.amount ?? (linkedTransaction ? Math.abs(Number(linkedTransaction.amount) || 0) / 100 : '');
+  form.elements.paymentReference.value = income?.paymentReference || linkedTransaction?.notes || linkedTransaction?.description || '';
+  form.elements.notes.value = income?.notes || '';
+  form.elements.dataStatus.value = income?.dataStatus || (linkedTransaction ? 'verified' : 'unverified');
+  const currentTransactionId = income?.externalTransactionId || linkedTransaction?.id || '';
+  const available = bankIncomeTransactions.filter(item => !bankIncomeRecord(item.id) || item.id === currentTransactionId);
+  form.elements.bankTransactionId.innerHTML = `<option value="">No bank payment linked</option>${available.map(item => `<option value="${esc(item.id)}" ${item.id === currentTransactionId ? 'selected' : ''}>${esc(item.merchant || item.description)} — ${moneyMinor(Math.abs(item.amount), item.currency)} — ${shortDate(item.settled || item.created)}</option>`).join('')}`;
+  form.elements.bankTransactionId.disabled = workspaceRole !== 'owner' || !bankLoaded;
+  $('#income-modal-title').textContent = income ? 'Edit income details' : linkedTransaction ? 'Classify incoming payment' : 'Add income details';
+  prepareDialog(dialogs.income);
+}
+
 function renderSaleOptions(selectedId = '') {
   const available = records.stock.filter(item => item.units > 0 && !item.archivedAt);
   $('#sale-stock-item').innerHTML = available.length
@@ -454,6 +520,9 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-stock-expense]').forEach(button => button.onclick = () => openExpense(button.dataset.stockExpense));
   document.querySelectorAll('[data-edit-expense]').forEach(button => button.onclick = () => openExpense('', records.expenses.find(item => String(item.id) === button.dataset.editExpense)));
   document.querySelectorAll('[data-bank-expense]').forEach(button => { button.onclick = () => { const transaction = bankTransactions.find(item => item.id === button.dataset.bankExpense); openExpense('', bankExpense(button.dataset.bankExpense), transaction); }; });
+  document.querySelectorAll('[data-bank-income]').forEach(button => { button.onclick = () => { const transaction = bankIncomeTransactions.find(item => item.id === button.dataset.bankIncome); openIncome(bankIncomeRecord(button.dataset.bankIncome), transaction); }; });
+  document.querySelectorAll('[data-edit-income]').forEach(button => button.onclick = () => openIncome(records.income.find(item => String(item.id) === button.dataset.editIncome)));
+  document.querySelectorAll('[data-archive-income]').forEach(button => button.onclick = () => archiveIncome(button.dataset.archiveIncome));
   document.querySelectorAll('[data-archive-stock]').forEach(button => button.onclick = () => archiveStock(button.dataset.archiveStock));
   document.querySelectorAll('[data-edit-shipment]').forEach(button => button.onclick = () => openShipment(records.shipments.find(item => String(item.id) === button.dataset.editShipment)));
   document.querySelectorAll('[data-add-tracking]').forEach(button => button.onclick = () => openTracking(records.shipments.find(item => String(item.id) === button.dataset.addTracking)));
@@ -475,7 +544,10 @@ function render() {
   renderSaleOptions();
   if (bankLoaded) {
     renderBankTransactions('#bank-payments', bankTransactions, 'No recent outgoing payments were returned.');
+    renderBankIncomeTransactions(bankIncomeTransactions);
     renderBankSpendChart(bankTransactions);
+    renderBankIncomeChart();
+    renderIncomeLedger();
   }
   bindRenderedActions();
 }
@@ -786,6 +858,27 @@ $('#expense-form').addEventListener('submit', async event => {
   await saveForm(form, query, id ? 'Expense updated.' : selectedTransactionId ? 'Payment linked and expense created.' : 'Expense saved.', dialogs.expense);
 });
 
+$('#income-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = new FormData(form);
+  const id = values.get('id');
+  const selectedTransactionId = String(form.elements.bankTransactionId.value || '');
+  const query = supabase.rpc('save_bank_income', {
+    p_workspace_id: workspaceId,
+    p_income_id: id ? Number(id) : null,
+    p_description: String(values.get('description')).trim(),
+    p_category: String(values.get('category')),
+    p_income_date: String(values.get('date')),
+    p_amount: Number(values.get('amount')),
+    p_payment_reference: String(values.get('paymentReference')).trim() || null,
+    p_notes: String(values.get('notes')).trim(),
+    p_data_status: String(values.get('dataStatus')),
+    p_external_transaction_id: selectedTransactionId || null
+  });
+  await saveForm(form, query, id ? 'Income details updated.' : selectedTransactionId ? 'Incoming payment classified.' : 'Income recorded.', dialogs.income);
+});
+
 async function updateShipmentStatus(id, status) {
   setStatus('Saving changes');
   const { error } = await supabase.from('shipments').update({ status }).eq('id', id).eq('workspace_id', workspaceId);
@@ -869,6 +962,21 @@ async function archiveBusinessRecord(recordType, recordId) {
   showMessage('Record archived. Its history has been preserved.', 'success');
 }
 
+async function archiveIncome(id) {
+  const reason = window.prompt('Why is this income record being archived?');
+  if (reason === null) return;
+  if (reason.trim().length < 3) return showMessage('Enter an archive reason of at least 3 characters.', 'error');
+  setStatus('Saving changes');
+  const { error } = await supabase.rpc('archive_income_record', { p_income_id: Number(id), p_reason: reason.trim() });
+  if (error) {
+    setStatus('Save failed', 'error');
+    return showMessage(error.message, 'error');
+  }
+  await loadWorkspaceData();
+  setStatus('Cloud data connected', 'connected');
+  showMessage('Income record archived; its history has been preserved.', 'success');
+}
+
 async function voidSale(recordId) {
   const reason = window.prompt('Why is this sale being removed? Its stock will be restored.');
   if (reason === null) return;
@@ -903,6 +1011,7 @@ document.querySelectorAll('[data-open-stock]').forEach(button => button.addEvent
 document.querySelectorAll('[data-open-sale]').forEach(button => button.addEventListener('click', () => openSale()));
 document.querySelectorAll('[data-open-shipment]').forEach(button => button.addEventListener('click', () => openShipment()));
 document.querySelectorAll('[data-open-expense]').forEach(button => button.addEventListener('click', () => openExpense()));
+document.querySelectorAll('[data-open-income]').forEach(button => button.addEventListener('click', () => openIncome()));
 document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 $('#profit-calculator').addEventListener('input', renderCalculator);
 $('#profit-calculator').addEventListener('change', renderCalculator);
@@ -915,6 +1024,17 @@ $('#expense-form').elements.stockItemId.addEventListener('change', event => {
 $('#expense-form').elements.bankTransactionId.addEventListener('change', event => {
   const form = $('#expense-form');
   const transaction = bankTransactions.find(item => item.id === event.currentTarget.value);
+  form.elements.externalTransactionId.value = transaction?.id || '';
+  if (!transaction) return;
+  form.elements.description.value = transaction.merchant || transaction.description || form.elements.description.value;
+  form.elements.amount.value = Math.abs(Number(transaction.amount) || 0) / 100;
+  form.elements.date.value = String(transaction.settled || transaction.created || form.elements.date.value).slice(0, 10);
+  form.elements.paymentReference.value = transaction.notes || transaction.description || '';
+  form.elements.dataStatus.value = 'verified';
+});
+$('#income-form').elements.bankTransactionId.addEventListener('change', event => {
+  const form = $('#income-form');
+  const transaction = bankIncomeTransactions.find(item => item.id === event.currentTarget.value);
   form.elements.externalTransactionId.value = transaction?.id || '';
   if (!transaction) return;
   form.elements.description.value = transaction.merchant || transaction.description || form.elements.description.value;

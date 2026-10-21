@@ -29,6 +29,8 @@ Expenses can also be linked to a stock item and explicitly included in its lande
 
 The reviewed bank reconciliation migration is `supabase/migrations/20261021121542_bank_expense_reconciliation.sql`. It lets the workspace owner match a Monzo payment to one expense, keeps the payment reference visible on both Bank and Expenses, and seeds useful expense categories without rewriting historical values. The Expenses page compares confirmed turnover, recorded spend, estimated profit and return on spend using currently available sales and stock-cost data. Follow `docs/BANK_EXPENSE_RECONCILIATION.md` before applying or deploying it.
 
+The additive `supabase/migrations/20261021123420_bank_income_classification.sql` migration adds an owner-only income register, references and classifications for incoming Monzo payments, plus a separate income-category chart. Income labels are operational bookkeeping and do not define legal ownership.
+
 ## Stage 1 checks
 
 Run the dependency-free repository checks with `node --test tests/*.test.mjs` and JavaScript syntax checks with `node --check analysis-tools.js`, `node --check toolkit.js` and `node --check settings.js`. The SQL integration tests in `supabase/tests/` must be run only against a disposable local or branch database after applying all migrations.
