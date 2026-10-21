@@ -7,9 +7,10 @@ const supabase = createClient(
   'sb_publishable_kqyjZOBwyt0rJGEQao-pgw_uiEO8-Nf'
 );
 
-const records = { stock: [], expenses: [], income: [], sales: [], shipments: [], movements: [], stockImages: [], trackingEvents: [] };
+const records = { stock: [], expenses: [], income: [], sales: [], shipments: [], movements: [], stockImages: [], trackingEvents: [], actors: [] };
 let workspaceId = null;
 let workspaceRole = null;
+let currentUserId = null;
 let bankLoaded = false;
 let bankLoading = false;
 let bankTransactions = [];
@@ -61,6 +62,13 @@ function showAccessError(message) {
   accessError.hidden = false;
   $('#access-error-message').textContent = message;
   setStatus('Access unavailable', 'error');
+}
+
+function actorBadge(item) {
+  const actor = records.actors.find(member => member.userId === (item.updatedBy || item.createdBy));
+  const timestamp = item.updatedAt || item.createdAt;
+  const label = actor ? `${actor.name} · ${shortDate(timestamp)}` : `Legacy record · ${shortDate(timestamp)}`;
+  return `<span class="record-actor" title="${esc(label)}" aria-label="${esc(label)}">${actor?.avatarUrl ? `<img src="${esc(actor.avatarUrl)}" alt="">` : `<i>${esc((actor?.name || '?')[0].toUpperCase())}</i>`}</span>`;
 }
 
 function view(name) {
@@ -206,18 +214,19 @@ async function loadBankSummary(force = false) {
 }
 
 async function loadWorkspaceData() {
-  const [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult] = await Promise.all([
-    supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
-    supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, payment_reference, data_status, archived_at, created_at').order('expense_date', { ascending: false }),
-    supabase.from('income_records').select('id, description, category, income_date, amount, payment_reference, notes, source_provider, external_transaction_id, data_status, archived_at, created_at').order('income_date', { ascending: false }),
-    supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at').order('sold_at', { ascending: false }),
-    supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, final_mile_carrier, final_mile_tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at').order('created_at', { ascending: false }),
+  const [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult, memberResult] = await Promise.all([
+    supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('created_at', { ascending: false }),
+    supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, payment_reference, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('expense_date', { ascending: false }),
+    supabase.from('income_records').select('id, description, category, income_date, amount, payment_reference, notes, source_provider, external_transaction_id, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('income_date', { ascending: false }),
+    supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at, updated_at, created_by, updated_by').order('sold_at', { ascending: false }),
+    supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, final_mile_carrier, final_mile_tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('created_at', { ascending: false }),
     supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200),
     supabase.from('stock_images').select('id, stock_item_id, storage_path, alt_text, sort_order, created_at').order('sort_order').order('created_at'),
-    supabase.from('shipment_tracking_events').select('id, shipment_id, event_status, description, location, occurred_at, source, created_at').order('occurred_at', { ascending: false })
+    supabase.from('shipment_tracking_events').select('id, shipment_id, event_status, description, location, occurred_at, source, created_at').order('occurred_at', { ascending: false }),
+    supabase.rpc('list_workspace_members', { p_workspace_id: workspaceId })
   ]);
 
-  for (const result of [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult]) {
+  for (const result of [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult, memberResult]) {
     if (result.error) throw result.error;
   }
 
@@ -225,33 +234,40 @@ async function loadWorkspaceData() {
     id: item.id, product: item.product_name, category: item.category, sku: item.sku,
     units: Number(item.units), unitCost: Number(item.unit_cost), shippingPaid: Number(item.shipping_paid),
     otherFees: Number(item.other_fees), notes: item.notes, dataStatus: item.data_status,
-    archivedAt: item.archived_at, createdAt: item.created_at
+    archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
   records.expenses = (expenseResult.data || []).map(item => ({
     id: item.id, description: item.description, category: item.category, date: item.expense_date,
     amount: Number(item.amount), stockItemId: item.stock_item_id,
     includeInLandedCost: item.include_in_landed_cost, sourceProvider: item.source_provider,
     externalTransactionId: item.external_transaction_id, paymentReference: item.payment_reference, dataStatus: item.data_status,
-    archivedAt: item.archived_at, createdAt: item.created_at
+    archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
   records.income = (incomeResult.data || []).map(item => ({
     id: item.id, description: item.description, category: item.category, date: item.income_date,
     amount: Number(item.amount), paymentReference: item.payment_reference, notes: item.notes,
     sourceProvider: item.source_provider, externalTransactionId: item.external_transaction_id,
-    dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at
+    dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
   records.sales = (salesResult.data || []).map(item => ({
     id: item.id, stockItemId: item.stock_item_id, units: Number(item.units), unitSalePrice: Number(item.unit_sale_price),
     marketplace: item.marketplace, marketplaceFees: Number(item.marketplace_fees), notes: item.notes, dataStatus: item.data_status,
-    archivedAt: item.archived_at, archiveReason: item.archive_reason, soldAt: item.sold_at, createdAt: item.created_at
+    archivedAt: item.archived_at, archiveReason: item.archive_reason, soldAt: item.sold_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
   records.shipments = (shipmentResult.data || []).map(item => ({
     id: item.id, direction: item.direction, status: item.status, itemName: item.item_name, category: item.category,
     units: Number(item.units), origin: item.origin, destination: item.destination, carrier: item.carrier,
     trackingNumber: item.tracking_number, finalMileCarrier: item.final_mile_carrier,
     finalMileTrackingNumber: item.final_mile_tracking_number, shippingCost: Number(item.shipping_cost), expectedDate: item.expected_date,
-    notes: item.notes, dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at
+    notes: item.notes, dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
+  records.actors = (memberResult.data || []).map(member => ({ userId: member.user_id, name: member.display_name || member.email || 'Team member', path: member.avatar_path, avatarUrl: '' }));
+  const actorPhotos = records.actors.filter(actor => actor.path);
+  if (actorPhotos.length) {
+    const { data: signedActors, error: actorError } = await supabase.storage.from('profile-pictures').createSignedUrls(actorPhotos.map(actor => actor.path), 3600);
+    if (actorError) throw actorError;
+    actorPhotos.forEach((actor, index) => { actor.avatarUrl = signedActors[index]?.signedUrl || ''; });
+  }
   records.movements = (movementResult.data || []).map(item => ({
     id: item.id, stockItemId: item.stock_item_id, type: item.movement_type,
     quantityDelta: Number(item.quantity_delta), reason: item.reason,
@@ -426,6 +442,23 @@ function actionMenu(actions) {
   return `<details class="action-menu"><summary aria-label="More actions" title="More actions"><span aria-hidden="true">•••</span></summary><div class="action-sheet" role="group">${actions}</div></details>`;
 }
 
+function renderActorBadges() {
+  const targets = [
+    ['[data-edit-stock]', records.stock, 'editStock', 'tr', '.stock-product-cell strong'],
+    ['[data-edit-expense]', records.expenses, 'editExpense', 'tr', 'td strong'],
+    ['[data-void-sale]', records.sales, 'voidSale', 'tr', 'td strong'],
+    ['[data-edit-shipment]', records.shipments, 'editShipment', '.shipment-card', 'h4'],
+    ['[data-edit-income]', records.income, 'editIncome', 'tr', 'td strong']
+  ];
+  targets.forEach(([selector, collection, dataKey, containerSelector, labelSelector]) => {
+    document.querySelectorAll(selector).forEach(control => {
+      const item = collection.find(record => String(record.id) === String(control.dataset[dataKey]));
+      const label = control.closest(containerSelector)?.querySelector(labelSelector);
+      if (item && label && !label.querySelector('.record-actor')) label.insertAdjacentHTML('beforeend', actorBadge(item));
+    });
+  });
+}
+
 function renderShipments() {
   for (const direction of ['incoming', 'outgoing']) {
     const items = records.shipments.filter(item => item.direction === direction && !item.archivedAt);
@@ -517,6 +550,7 @@ function renderSaleOptions(selectedId = '') {
 }
 
 function bindRenderedActions() {
+  renderActorBadges();
   document.querySelectorAll('[data-edit-stock]').forEach(button => button.onclick = () => openStock(stockById(button.dataset.editStock)));
   document.querySelectorAll('[data-sell-stock]').forEach(button => button.onclick = () => openSale(button.dataset.sellStock));
   document.querySelectorAll('[data-move-stock]').forEach(button => button.onclick = () => openMovement(stockById(button.dataset.moveStock)));
@@ -1064,14 +1098,48 @@ $('#sign-out').addEventListener('click', signOut);
 $('#error-sign-out').addEventListener('click', signOut);
 $('#refresh-bank').addEventListener('click', () => loadBankSummary(true));
 
+const profileSetupDialog = $('#profile-setup-modal');
+profileSetupDialog.addEventListener('cancel', event => event.preventDefault());
+$('#profile-setup-form').elements.avatar.addEventListener('change', event => {
+  const file = event.currentTarget.files?.[0];
+  $('#profile-setup-preview').innerHTML = file ? `<img src="${URL.createObjectURL(file)}" alt="Profile picture preview"><span>${esc(file.name)}</span>` : 'No picture selected';
+});
+$('#profile-setup-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = form.querySelector('[data-form-message]');
+  const button = form.querySelector('button[type="submit"]');
+  const file = form.elements.avatar.files?.[0];
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return message.textContent = 'Choose a JPG, PNG or WebP image.';
+  if (file.size > 5 * 1024 * 1024) return message.textContent = 'Profile pictures must be 5 MB or smaller.';
+  const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[file.type];
+  const path = `${workspaceId}/${currentUserId}/${crypto.randomUUID()}.${extension}`;
+  button.disabled = true;
+  button.textContent = 'Saving picture…';
+  const { error: uploadError } = await supabase.storage.from('profile-pictures').upload(path, file, { contentType: file.type, upsert: false });
+  if (uploadError) { button.disabled = false; button.textContent = 'Save picture and continue'; return message.textContent = uploadError.message; }
+  const { error: saveError } = await supabase.rpc('set_my_workspace_avatar', { p_workspace_id: workspaceId, p_avatar_path: path });
+  if (saveError) {
+    await supabase.storage.from('profile-pictures').remove([path]);
+    button.disabled = false;
+    button.textContent = 'Save picture and continue';
+    return message.textContent = saveError.message;
+  }
+  profileSetupDialog.close();
+  await loadWorkspaceData();
+  showMessage('Profile picture saved. Your future activity will show your avatar.', 'success');
+});
+
 async function start() {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) return showAccessError(sessionError.message);
   if (!session?.user) return window.location.replace('login.html');
 
+  currentUserId = session.user.id;
+
   $('#account-email').textContent = session.user.email || 'Team member';
   setStatus('Loading workspace');
-  const { data: membership, error: membershipError } = await supabase.from('workspace_members').select('workspace_id, role').limit(1).maybeSingle();
+  const { data: membership, error: membershipError } = await supabase.from('workspace_members').select('workspace_id, role, avatar_path').limit(1).maybeSingle();
   if (membershipError) return showAccessError(`We could not verify your workspace access: ${membershipError.message}`);
   if (!membership) return showAccessError('This login is valid, but it has not been added to the Kurionyx workspace.');
 
@@ -1096,6 +1164,7 @@ async function start() {
     loadingPanel.hidden = true;
     toolkitApp.hidden = false;
     setStatus('Cloud data connected', 'connected');
+    if (!membership.avatar_path) profileSetupDialog.showModal();
   } catch (error) {
     showAccessError(`Your account is connected, but the operations data could not be loaded: ${error.message}`);
   }
