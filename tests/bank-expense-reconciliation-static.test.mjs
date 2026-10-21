@@ -8,6 +8,7 @@ const [migration, markup, toolkit, styles] = await Promise.all([
   readFile(new URL('../toolkit.js', import.meta.url), 'utf8'),
   readFile(new URL('../styles.css', import.meta.url), 'utf8')
 ]);
+const expandedCategories = await readFile(new URL('../supabase/migrations/20261021125200_expand_expense_categories.sql', import.meta.url), 'utf8');
 
 test('bank reconciliation is additive, workspace scoped and owner controlled', () => {
   assert.match(migration, /add column if not exists payment_reference text/i);
@@ -16,6 +17,13 @@ test('bank reconciliation is additive, workspace scoped and owner controlled', (
   assert.match(migration, /revoke all on function public\.save_bank_expense[\s\S]*from public, anon/i);
   assert.doesNotMatch(migration, /delete from public\.(expenses|expense_categories)/i);
   assert.doesNotMatch(migration, /update public\.expenses[\s\S]*where[\s\S]*external_transaction_id is null/i);
+});
+
+test('e-commerce expense categories cover Amazon, shipping and packaging workflows', () => {
+  for (const category of ['Amazon selling fees', 'FBA fulfilment fees', 'Shipping to Amazon', 'Customer delivery', 'Packaging materials', 'Stock preparation & labelling']) {
+    assert.match(expandedCategories, new RegExp(category, 'i'));
+  }
+  assert.match(toolkit, /Amazon selling fees/);
 });
 
 test('helpful expense categories are seeded without rewriting legacy values', () => {

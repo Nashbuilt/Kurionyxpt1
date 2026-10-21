@@ -21,7 +21,7 @@ test('application surfaces use responsive frosted glass with a reduced-transpare
 });
 
 test('the PWA shell cache is refreshed for the redesigned assets', () => {
-  assert.match(serviceWorker, /kurionyx-shell-v11/);
+  assert.match(serviceWorker, /kurionyx-shell-v12/);
   assert.match(styles, /\[data-panel="stock"\]>\.section-tool-head \+ \.table-wrap table/);
   assert.match(serviceWorker, /'\/styles\.css'/);
   assert.match(serviceWorker, /'\/toolkit\.js'/);
