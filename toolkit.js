@@ -7,7 +7,7 @@ const supabase = createClient(
   'sb_publishable_kqyjZOBwyt0rJGEQao-pgw_uiEO8-Nf'
 );
 
-const records = { stock: [], expenses: [], income: [], sales: [], shipments: [], shipmentItems: [], movements: [], stockImages: [], trackingEvents: [], actors: [] };
+const records = { stock: [], products: [], expenses: [], income: [], sales: [], shipments: [], shipmentItems: [], movements: [], stockImages: [], trackingEvents: [], actors: [] };
 let workspaceId = null;
 let workspaceRole = null;
 let currentUserId = null;
@@ -29,7 +29,9 @@ const dialogs = {
   expense: $('#expense-modal'),
   income: $('#income-modal'),
   movement: $('#movement-modal'),
-  tracking: $('#tracking-modal')
+  tracking: $('#tracking-modal'),
+  product: $('#product-modal'),
+  promoteProduct: $('#promote-product-modal')
 };
 
 const shipmentForm = $('#shipment-form');
@@ -79,8 +81,16 @@ function actorBadge(item) {
 function view(name, updateUrl = true) {
   if (!document.querySelector(`.tool-view[data-panel="${name}"]`)) name = 'dashboard';
   document.querySelectorAll('.tool-nav[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === name));
+  const activeLink = document.querySelector(`.tool-nav[data-view="${name}"]`);
+  const activeGroup = activeLink?.closest('.nav-group');
+  document.querySelectorAll('.nav-group').forEach(group => {
+    const isActive = group === activeGroup;
+    group.classList.toggle('active', isActive);
+    group.classList.toggle('open', isActive);
+    group.querySelector('.nav-group-button')?.setAttribute('aria-expanded', String(isActive));
+  });
   document.querySelectorAll('.tool-view').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === name));
-  $('#tool-title').textContent = name[0].toUpperCase() + name.slice(1);
+  $('#tool-title').textContent = name === 'products' ? 'Product Studio' : name[0].toUpperCase() + name.slice(1);
   if (name === 'bank' && !bankLoaded) loadBankSummary();
   if (updateUrl && window.location.hash !== `#${name}`) window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}#${name}`);
 }
@@ -221,8 +231,9 @@ async function loadBankSummary(force = false) {
 }
 
 async function loadWorkspaceData() {
-  const [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, shipmentItemResult, movementResult, imageResult, trackingResult, memberResult] = await Promise.all([
+  const [stockResult, productResult, expenseResult, incomeResult, salesResult, shipmentResult, shipmentItemResult, movementResult, imageResult, trackingResult, memberResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('created_at', { ascending: false }),
+    supabase.from('product_opportunities').select('id, name, category, proposed_sku, supplier_name, supplier_url, source_url, marketplace, research_status, confidence, estimated_unit_cost, estimated_shipping_cost, estimated_marketplace_fees, target_sale_price, estimated_monthly_sales, notes, linked_stock_item_id, archived_at, created_at, updated_at, created_by, updated_by').order('updated_at', { ascending: false }),
     supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, payment_reference, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('expense_date', { ascending: false }),
     supabase.from('income_records').select('id, description, category, income_date, amount, payment_reference, notes, source_provider, external_transaction_id, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('income_date', { ascending: false }),
     supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at, updated_at, created_by, updated_by').order('sold_at', { ascending: false }),
@@ -234,7 +245,7 @@ async function loadWorkspaceData() {
     supabase.rpc('list_workspace_members', { p_workspace_id: workspaceId })
   ]);
 
-  for (const result of [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, shipmentItemResult, movementResult, imageResult, trackingResult, memberResult]) {
+  for (const result of [stockResult, productResult, expenseResult, incomeResult, salesResult, shipmentResult, shipmentItemResult, movementResult, imageResult, trackingResult, memberResult]) {
     if (result.error) throw result.error;
   }
 
@@ -242,6 +253,15 @@ async function loadWorkspaceData() {
     id: item.id, product: item.product_name, category: item.category, sku: item.sku,
     units: Number(item.units), unitCost: Number(item.unit_cost), shippingPaid: Number(item.shipping_paid),
     otherFees: Number(item.other_fees), notes: item.notes, dataStatus: item.data_status,
+    archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
+  }));
+  records.products = (productResult.data || []).map(item => ({
+    id: item.id, name: item.name, category: item.category, proposedSku: item.proposed_sku,
+    supplierName: item.supplier_name, supplierUrl: item.supplier_url, sourceUrl: item.source_url,
+    marketplace: item.marketplace, researchStatus: item.research_status, confidence: item.confidence,
+    estimatedUnitCost: Number(item.estimated_unit_cost), estimatedShippingCost: Number(item.estimated_shipping_cost),
+    estimatedMarketplaceFees: Number(item.estimated_marketplace_fees), targetSalePrice: Number(item.target_sale_price),
+    estimatedMonthlySales: Number(item.estimated_monthly_sales), notes: item.notes, linkedStockItemId: item.linked_stock_item_id,
     archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
   records.expenses = (expenseResult.data || []).map(item => ({
@@ -583,6 +603,73 @@ function renderSaleOptions(selectedId = '') {
     : '<option value="">No stock is currently available</option>';
 }
 
+const productStatusLabels = { idea: 'Idea', researching: 'Researching', sample_ordered: 'Sample ordered', approved: 'Approved', rejected: 'Rejected', converted: 'In stock' };
+
+function renderProducts() {
+  const active = records.products.filter(item => !item.archivedAt);
+  $('#product-ideas-count').textContent = number(active.filter(item => item.researchStatus === 'idea').length);
+  $('#product-research-count').textContent = number(active.filter(item => ['researching', 'sample_ordered'].includes(item.researchStatus)).length);
+  $('#product-approved-count').textContent = number(active.filter(item => item.researchStatus === 'approved').length);
+  $('#product-converted-count').textContent = number(active.filter(item => item.researchStatus === 'converted').length);
+  const filter = $('#product-status-filter').value;
+  const filtered = active.filter(item => filter === 'active' || item.researchStatus === filter);
+  $('#product-opportunity-grid').innerHTML = filtered.length ? filtered.map(item => {
+    const totalUnitCost = item.estimatedUnitCost + item.estimatedShippingCost + item.estimatedMarketplaceFees;
+    const unitProfit = item.targetSalePrice - totalUnitCost;
+    const margin = item.targetSalePrice ? unitProfit / item.targetSalePrice * 100 : 0;
+    return `<article class="product-opportunity-card">
+      <div class="product-card-top"><span class="product-status status-${esc(item.researchStatus)}">${esc(productStatusLabels[item.researchStatus] || item.researchStatus)}</span>${actorBadge(item)}</div>
+      <p class="product-marketplace">${esc(item.marketplace)} · ${esc(item.category)}</p><h3>${esc(item.name)}</h3>
+      <div class="product-economics"><div><span>Target price</span><strong>${money(item.targetSalePrice)}</strong></div><div><span>Est. unit cost</span><strong>${money(totalUnitCost)}</strong></div><div><span>Est. margin</span><strong class="${margin < 0 ? 'negative' : ''}">${margin.toFixed(1)}%</strong></div></div>
+      <p class="product-supplier">${item.supplierName ? `Supplier: ${esc(item.supplierName)}` : 'No supplier recorded'}${item.estimatedMonthlySales ? ` · ${number(item.estimatedMonthlySales)} est. monthly sales` : ''}</p>
+      ${item.notes ? `<p class="product-notes">${esc(item.notes)}</p>` : ''}
+      <div class="product-links">${item.sourceUrl ? `<a href="${esc(item.sourceUrl)}" target="_blank" rel="noopener">Research link ↗</a>` : ''}${item.supplierUrl ? `<a href="${esc(item.supplierUrl)}" target="_blank" rel="noopener">Supplier ↗</a>` : ''}</div>
+      <div class="row-actions product-actions">${item.linkedStockItemId ? `<button type="button" data-view-product-stock="${item.linkedStockItemId}">View stock</button>` : `<button type="button" class="primary-action" data-promote-product="${item.id}">Create stock item</button><button type="button" data-edit-product="${item.id}">Edit</button><button type="button" class="delete-row" data-archive-product="${item.id}">Archive</button>`}</div>
+    </article>`;
+  }).join('') : '<div class="product-empty"><strong>No matching product research yet.</strong><p>Capture an idea here before it becomes live stock.</p><button class="button primary small" type="button" data-open-product>+ Add product idea</button></div>';
+}
+
+function openProduct(item = null) {
+  const form = $('#product-form');
+  form.reset();
+  form.elements.id.value = item?.id || '';
+  form.elements.name.value = item?.name || '';
+  form.elements.category.value = item?.category || '';
+  form.elements.proposedSku.value = item?.proposedSku || '';
+  form.elements.marketplace.value = item?.marketplace || 'Amazon';
+  form.elements.supplierName.value = item?.supplierName || '';
+  form.elements.supplierUrl.value = item?.supplierUrl || '';
+  form.elements.sourceUrl.value = item?.sourceUrl || '';
+  form.elements.researchStatus.value = item?.researchStatus === 'converted' ? 'approved' : item?.researchStatus || 'idea';
+  form.elements.confidence.value = item?.confidence || 'low';
+  form.elements.estimatedUnitCost.value = item?.estimatedUnitCost ?? 0;
+  form.elements.estimatedShippingCost.value = item?.estimatedShippingCost ?? 0;
+  form.elements.estimatedMarketplaceFees.value = item?.estimatedMarketplaceFees ?? 0;
+  form.elements.targetSalePrice.value = item?.targetSalePrice ?? 0;
+  form.elements.estimatedMonthlySales.value = item?.estimatedMonthlySales ?? 0;
+  form.elements.notes.value = item?.notes || '';
+  $('#product-modal-title').textContent = item ? 'Edit product research' : 'Add product idea';
+  prepareDialog(dialogs.product);
+}
+
+function openPromoteProduct(item) {
+  const form = $('#promote-product-form');
+  form.reset();
+  form.elements.opportunityId.value = item.id;
+  form.elements.sku.value = item.proposedSku || '';
+  form.elements.unitCost.value = item.estimatedUnitCost || 0;
+  $('#promote-product-name').textContent = `${item.name} · ${item.category}`;
+  prepareDialog(dialogs.promoteProduct);
+}
+
+async function archiveProduct(id) {
+  if (!window.confirm('Archive this product research? It will be hidden but its history will be preserved.')) return;
+  const { error } = await supabase.rpc('archive_product_opportunity', { p_opportunity_id: Number(id) });
+  if (error) return showMessage(error.message, 'error');
+  await loadWorkspaceData();
+  showMessage('Product research archived.', 'success');
+}
+
 function bindRenderedActions() {
   renderActorBadges();
   enhanceShipmentCards();
@@ -606,6 +693,11 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-receive-shipment]').forEach(button => button.onclick = () => receiveShipment(button.dataset.receiveShipment));
   document.querySelectorAll('[data-view-linked-shipment]').forEach(button => button.onclick = () => { view('shipping'); document.querySelector(`[data-edit-shipment="${button.dataset.viewLinkedShipment}"]`)?.closest('.shipment-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
   document.querySelectorAll('[data-classify-record]').forEach(button => button.onclick = () => classifyRecord(button.dataset.classifyRecord, button.dataset.recordId, button.dataset.currentStatus));
+  document.querySelectorAll('[data-open-product]').forEach(button => button.onclick = () => openProduct());
+  document.querySelectorAll('[data-edit-product]').forEach(button => button.onclick = () => openProduct(records.products.find(item => String(item.id) === button.dataset.editProduct)));
+  document.querySelectorAll('[data-promote-product]').forEach(button => button.onclick = () => openPromoteProduct(records.products.find(item => String(item.id) === button.dataset.promoteProduct)));
+  document.querySelectorAll('[data-archive-product]').forEach(button => button.onclick = () => archiveProduct(button.dataset.archiveProduct));
+  document.querySelectorAll('[data-view-product-stock]').forEach(button => button.onclick = () => { view('stock'); document.querySelector(`[data-edit-stock="${button.dataset.viewProductStock}"]`)?.closest('tr')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
 }
 
 function render() {
@@ -617,6 +709,7 @@ function render() {
   renderExpenses();
   renderSpending();
   renderCalculator();
+  renderProducts();
   renderSaleOptions();
   if (bankLoaded) {
     renderBankTransactions('#bank-payments', bankTransactions, 'No recent outgoing payments were returned.');
@@ -816,6 +909,40 @@ $('#stock-form').addEventListener('submit', async event => {
   await loadWorkspaceData();
   setStatus('Cloud data connected', 'connected');
   showMessage(id ? 'Stock details and photos updated.' : 'Stock item, photos and initial receipt recorded.', 'success');
+});
+
+$('#product-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = new FormData(form);
+  const id = values.get('id');
+  const payload = {
+    name: String(values.get('name')).trim(), category: String(values.get('category')).trim(),
+    proposed_sku: String(values.get('proposedSku')).trim() || null, marketplace: String(values.get('marketplace')).trim(),
+    supplier_name: String(values.get('supplierName')).trim() || null, supplier_url: String(values.get('supplierUrl')).trim() || null,
+    source_url: String(values.get('sourceUrl')).trim() || null, research_status: String(values.get('researchStatus')),
+    confidence: String(values.get('confidence')), estimated_unit_cost: Number(values.get('estimatedUnitCost')),
+    estimated_shipping_cost: Number(values.get('estimatedShippingCost')), estimated_marketplace_fees: Number(values.get('estimatedMarketplaceFees')),
+    target_sale_price: Number(values.get('targetSalePrice')), estimated_monthly_sales: Number(values.get('estimatedMonthlySales')),
+    notes: String(values.get('notes')).trim()
+  };
+  const query = id
+    ? supabase.from('product_opportunities').update(payload).eq('id', id).eq('workspace_id', workspaceId)
+    : supabase.from('product_opportunities').insert({ ...payload, workspace_id: workspaceId });
+  await saveForm(form, query, id ? 'Product research updated.' : 'Product idea added to Product Studio.', dialogs.product);
+});
+
+$('#promote-product-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = new FormData(form);
+  await saveForm(form, supabase.rpc('promote_product_opportunity', {
+    p_opportunity_id: Number(values.get('opportunityId')),
+    p_sku: String(values.get('sku')).trim(),
+    p_initial_units: Number(values.get('initialUnits')),
+    p_unit_cost: Number(values.get('unitCost')),
+    p_data_status: String(values.get('dataStatus'))
+  }), 'Product linked to the Stock Ledger. Any received units were recorded through the inventory movement ledger.', dialogs.promoteProduct);
 });
 
 $('#sale-form').addEventListener('submit', async event => {
@@ -1122,6 +1249,16 @@ async function signOut() {
 }
 
 document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => view(button.dataset.view)));
+document.querySelectorAll('.nav-group-button').forEach(button => button.addEventListener('click', () => {
+  const group = button.closest('.nav-group');
+  const onlyView = group.querySelectorAll('.tool-nav[data-view]');
+  if (onlyView.length === 1) return view(onlyView[0].dataset.view);
+  const opening = !group.classList.contains('open');
+  document.querySelectorAll('.nav-group').forEach(item => {
+    item.classList.toggle('open', item === group && opening);
+    item.querySelector('.nav-group-button')?.setAttribute('aria-expanded', String(item === group && opening));
+  });
+}));
 window.addEventListener('hashchange', () => view(window.location.hash.slice(1) || 'dashboard', false));
 document.querySelectorAll('select[name="dataStatus"] option[value="demonstration"]').forEach(option => option.remove());
 document.querySelectorAll('[data-view-jump]').forEach(button => button.addEventListener('click', () => view(button.dataset.viewJump)));
@@ -1135,6 +1272,7 @@ $('#profit-calculator').addEventListener('input', renderCalculator);
 $('#profit-calculator').addEventListener('change', renderCalculator);
 $('#spending-period').addEventListener('change', renderSpending);
 $('#spending-confirmed-only').addEventListener('change', renderSpending);
+$('#product-status-filter').addEventListener('change', () => { renderProducts(); bindRenderedActions(); });
 $('#expense-form').elements.stockItemId.addEventListener('change', event => {
   if (!event.currentTarget.value) $('#expense-form').elements.includeInLandedCost.checked = false;
 });

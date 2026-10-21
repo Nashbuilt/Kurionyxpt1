@@ -157,6 +157,42 @@
   .toolkit-page dialog[open]{position:fixed;inset:auto 0 0}
 }
 
+/* Grouped operating-system navigation and Product Studio */
+.toolkit-page .grouped-nav{display:grid;gap:7px;align-content:start}
+.toolkit-page .nav-group{display:grid;gap:4px}
+.toolkit-page .nav-group-button{width:100%;min-height:48px;border:0;border-radius:14px;padding:11px 13px;display:grid;grid-template-columns:24px 1fr 16px;align-items:center;gap:10px;background:transparent;color:#aeb8c7;text-align:left;font-weight:700;transition:.18s ease}
+.toolkit-page .nav-group-button i{font-style:normal;font-size:20px;transition:transform .18s ease}
+.toolkit-page .nav-group-button:hover,.toolkit-page .nav-group.active>.nav-group-button{background:#ffffff0d;color:white}
+.toolkit-page .nav-group.open>.nav-group-button i{transform:rotate(90deg)}
+.toolkit-page .nav-submenu{display:none;margin-left:24px;padding-left:11px;border-left:1px solid #ffffff20}
+.toolkit-page .nav-group.open>.nav-submenu{display:grid;gap:3px}
+.toolkit-page .nav-submenu .tool-nav{min-height:39px;padding:9px 12px;font-size:13px;border-radius:11px}
+.toolkit-page .nav-submenu .tool-nav.active{background:white;color:var(--bank-ink)}
+.product-studio-metrics{margin-bottom:18px}
+.product-studio-toolbar{display:flex;justify-content:flex-end;margin:8px 0 16px}
+.product-studio-toolbar label{display:flex;align-items:center;gap:9px;margin:0;color:var(--muted)}
+.product-studio-toolbar select{min-width:210px}
+.product-opportunity-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.product-opportunity-card{background:#fff;border-radius:22px;padding:22px;box-shadow:0 8px 30px #1720330a;min-width:0;display:flex;flex-direction:column}
+.product-card-top{display:flex;justify-content:space-between;align-items:center;min-height:28px}.product-status{border-radius:999px;padding:6px 10px;background:#eef0f3;color:#4d5869;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.product-status.status-approved{background:#dcf7e8;color:#087343}.product-status.status-rejected{background:#fff0f1;color:#b52d3a}.product-status.status-converted{background:#e5edf9;color:#285885}.product-status.status-researching,.product-status.status-sample_ordered{background:#fff2cc;color:#765609}
+.product-marketplace{margin:18px 0 5px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.product-opportunity-card h3{font:700 21px/1.2 Manrope;margin:0 0 18px;color:var(--bank-ink)}
+.product-economics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;background:#f5f6f7;border-radius:15px;padding:12px}.product-economics div{min-width:0}.product-economics span{display:block;color:var(--muted);font-size:9px}.product-economics strong{display:block;margin-top:5px;font-size:13px;overflow:hidden;text-overflow:ellipsis}.product-economics .negative{color:#c73342}
+.product-supplier,.product-notes{font-size:12px;line-height:1.5;color:var(--muted)}.product-notes{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.product-links{display:flex;gap:13px;flex-wrap:wrap;margin:auto 0 14px}.product-links a{color:#355f67;font-size:12px;font-weight:700}.product-actions{display:flex;gap:7px;flex-wrap:wrap}.product-actions button{flex:1}.product-actions .primary-action{background:var(--bank-coral);color:#fff}.product-empty{grid-column:1/-1;background:#fff;border-radius:22px;padding:55px;text-align:center;box-shadow:0 8px 30px #1720330a}.product-empty p{color:var(--muted)}
+
+@media(max-width:1100px){.product-opportunity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px){
+  .toolkit-page .toolkit aside>nav.grouped-nav{display:grid;grid-template-columns:repeat(5,1fr);overflow:visible;gap:3px}
+  .toolkit-page .nav-group{position:static;display:block}
+  .toolkit-page .nav-group-button{height:58px;min-height:58px;padding:6px 2px;display:flex;flex-direction:column;justify-content:center;gap:3px;color:#747d8c;text-align:center;font-size:18px}
+  .toolkit-page .nav-group-button span{display:block;font-size:9px;line-height:1.1}.toolkit-page .nav-group-button i{display:none}
+  .toolkit-page .nav-group.active>.nav-group-button{background:#fff0e5;color:#c5530d}
+  .toolkit-page .nav-submenu{display:none;position:fixed;z-index:99;left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));margin:0;padding:9px;border:1px solid #e5e7ea;border-radius:18px;background:#fffffff2;box-shadow:0 -8px 35px #17203324;backdrop-filter:blur(20px);grid-template-columns:repeat(auto-fit,minmax(70px,1fr))}
+  .toolkit-page .nav-group.open>.nav-submenu{display:grid}
+  .toolkit-page .nav-submenu .tool-nav{display:flex;height:44px;min-height:44px;justify-content:center;align-items:center;padding:8px;font-size:11px;text-align:center;color:#536071;background:#f2f4f6}
+  .toolkit-page .nav-submenu .tool-nav.active{background:#ffe7d6;color:#a84408}
+  .product-studio-metrics{grid-template-columns:repeat(2,1fr)}.product-opportunity-grid{grid-template-columns:1fr}.product-opportunity-card{border-radius:20px}.product-studio-toolbar{justify-content:stretch}.product-studio-toolbar label{width:100%;justify-content:space-between}.product-studio-toolbar select{flex:1;min-width:0}.product-empty{padding:38px 18px}
+}
+
 @media(min-width:801px) and (max-width:1000px){
   .toolkit-page .toolkit{grid-template-columns:86px minmax(0,1fr)}
   .toolkit-page .toolkit aside{padding-inline:12px}
