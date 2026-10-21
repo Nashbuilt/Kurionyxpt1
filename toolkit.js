@@ -7,7 +7,7 @@ const supabase = createClient(
   'sb_publishable_kqyjZOBwyt0rJGEQao-pgw_uiEO8-Nf'
 );
 
-const records = { stock: [], expenses: [], income: [], sales: [], shipments: [], movements: [], stockImages: [], trackingEvents: [], actors: [] };
+const records = { stock: [], expenses: [], income: [], sales: [], shipments: [], shipmentItems: [], movements: [], stockImages: [], trackingEvents: [], actors: [] };
 let workspaceId = null;
 let workspaceRole = null;
 let currentUserId = null;
@@ -31,6 +31,11 @@ const dialogs = {
   movement: $('#movement-modal'),
   tracking: $('#tracking-modal')
 };
+
+const shipmentForm = $('#shipment-form');
+shipmentForm.elements.notes.closest('label').insertAdjacentHTML('beforebegin', '<label>Linked stock item<select name="stockItemId"><option value="">No stock item linked yet</option></select><small class="field-help">Incoming quantities remain expected until you receive the shipment. Receiving adds stock once through the movement ledger.</small></label>');
+const stockPanel = document.querySelector('[data-panel="stock"]');
+stockPanel.querySelector('.section-tool-head.movement-heading').insertAdjacentHTML('beforebegin', '<section class="linked-shipment-strip"><div class="section-tool-head compact-head"><div><p>Expected inventory</p><h2>Linked incoming shipments</h2><span>Visible here before receipt, but not counted as available stock.</span></div></div><div id="stock-linked-shipments" class="linked-shipment-list"></div></section>');
 
 const money = value => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value) || 0);
 const number = value => new Intl.NumberFormat('en-GB').format(Number(value) || 0);
@@ -71,11 +76,13 @@ function actorBadge(item) {
   return `<span class="record-actor" title="${esc(label)}" aria-label="${esc(label)}">${actor?.avatarUrl ? `<img src="${esc(actor.avatarUrl)}" alt="">` : `<i>${esc((actor?.name || '?')[0].toUpperCase())}</i>`}</span>`;
 }
 
-function view(name) {
+function view(name, updateUrl = true) {
+  if (!document.querySelector(`.tool-view[data-panel="${name}"]`)) name = 'dashboard';
   document.querySelectorAll('.tool-nav[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === name));
   document.querySelectorAll('.tool-view').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === name));
   $('#tool-title').textContent = name[0].toUpperCase() + name.slice(1);
   if (name === 'bank' && !bankLoaded) loadBankSummary();
+  if (updateUrl && window.location.hash !== `#${name}`) window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}#${name}`);
 }
 
 const chartColours = ['#103f47', '#f47a24', '#6f8f94', '#d6a56f', '#7c6f91', '#4f7468', '#c66f52', '#89969a'];
@@ -214,19 +221,20 @@ async function loadBankSummary(force = false) {
 }
 
 async function loadWorkspaceData() {
-  const [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult, memberResult] = await Promise.all([
+  const [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, shipmentItemResult, movementResult, imageResult, trackingResult, memberResult] = await Promise.all([
     supabase.from('stock_items').select('id, product_name, category, sku, units, unit_cost, shipping_paid, other_fees, notes, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('created_at', { ascending: false }),
     supabase.from('expenses').select('id, description, category, expense_date, amount, stock_item_id, include_in_landed_cost, source_provider, external_transaction_id, payment_reference, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('expense_date', { ascending: false }),
     supabase.from('income_records').select('id, description, category, income_date, amount, payment_reference, notes, source_provider, external_transaction_id, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('income_date', { ascending: false }),
     supabase.from('stock_sales').select('id, stock_item_id, units, unit_sale_price, marketplace, marketplace_fees, notes, data_status, archived_at, archive_reason, sold_at, created_at, updated_at, created_by, updated_by').order('sold_at', { ascending: false }),
     supabase.from('shipments').select('id, direction, status, item_name, category, units, origin, destination, carrier, tracking_number, final_mile_carrier, final_mile_tracking_number, shipping_cost, expected_date, notes, data_status, archived_at, created_at, updated_at, created_by, updated_by').order('created_at', { ascending: false }),
+    supabase.from('shipment_items').select('id, shipment_id, stock_item_id, quantity, created_at'),
     supabase.from('inventory_movements').select('id, stock_item_id, movement_type, quantity_delta, reason, data_status, occurred_at, created_at').order('occurred_at', { ascending: false }).limit(200),
     supabase.from('stock_images').select('id, stock_item_id, storage_path, alt_text, sort_order, created_at').order('sort_order').order('created_at'),
     supabase.from('shipment_tracking_events').select('id, shipment_id, event_status, description, location, occurred_at, source, created_at').order('occurred_at', { ascending: false }),
     supabase.rpc('list_workspace_members', { p_workspace_id: workspaceId })
   ]);
 
-  for (const result of [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, movementResult, imageResult, trackingResult, memberResult]) {
+  for (const result of [stockResult, expenseResult, incomeResult, salesResult, shipmentResult, shipmentItemResult, movementResult, imageResult, trackingResult, memberResult]) {
     if (result.error) throw result.error;
   }
 
@@ -261,6 +269,7 @@ async function loadWorkspaceData() {
     finalMileTrackingNumber: item.final_mile_tracking_number, shippingCost: Number(item.shipping_cost), expectedDate: item.expected_date,
     notes: item.notes, dataStatus: item.data_status, archivedAt: item.archived_at, createdAt: item.created_at, updatedAt: item.updated_at, createdBy: item.created_by, updatedBy: item.updated_by
   }));
+  records.shipmentItems = (shipmentItemResult.data || []).map(item => ({ id: item.id, shipmentId: item.shipment_id, stockItemId: item.stock_item_id, quantity: Number(item.quantity), createdAt: item.created_at }));
   records.actors = (memberResult.data || []).map(member => ({ userId: member.user_id, name: member.display_name || member.email || 'Team member', path: member.avatar_path, avatarUrl: '' }));
   const actorPhotos = records.actors.filter(actor => actor.path);
   if (actorPhotos.length) {
@@ -373,6 +382,9 @@ function renderStock() {
   $('#stock-expense-table').innerHTML = stockExpenses.length
     ? stockExpenses.map(item => { const stock = stockById(item.stockItemId); return `<tr><td>${shortDate(item.date)}</td><td><strong>${esc(stock?.product || 'Archived stock item')}</strong><small class="cell-detail">${esc(stock?.sku || '')}</small></td><td>${esc(item.description)}</td><td>${esc(item.category)}</td><td>${money(item.amount)}</td><td>${item.includeInLandedCost ? 'Included' : 'Cash only'}</td><td><span class="data-status status-${esc(item.dataStatus)}">${esc(item.dataStatus)}</span></td><td><button class="delete-row" data-archive-record="expense" data-record-id="${item.id}">Archive</button></td></tr>`; }).join('')
     : '<tr><td colspan="8" class="empty">No expenses are linked to stock yet.</td></tr>';
+  const incomingLinks = records.shipmentItems.map(line => ({ line, shipment: records.shipments.find(item => String(item.id) === String(line.shipmentId)), stock: stockById(line.stockItemId) }))
+    .filter(item => item.shipment?.direction === 'incoming' && !item.shipment.archivedAt && !['delivered', 'cancelled'].includes(item.shipment.status));
+  $('#stock-linked-shipments').innerHTML = incomingLinks.length ? incomingLinks.map(({ line, shipment, stock }) => `<article><div><strong>${esc(stock?.product || shipment.itemName)}</strong><span>${number(line.quantity)} expected · ${esc(shipment.status.replace('_', ' '))} · ${shortDate(shipment.expectedDate)}</span></div><button class="button secondary small" data-view-linked-shipment="${shipment.id}">View shipping</button></article>`).join('') : '<p class="empty compact">No linked incoming stock is currently expected.</p>';
 }
 
 function renderSpending() {
@@ -456,6 +468,28 @@ function renderActorBadges() {
       const label = control.closest(containerSelector)?.querySelector(labelSelector);
       if (item && label && !label.querySelector('.record-actor')) label.insertAdjacentHTML('beforeend', actorBadge(item));
     });
+  });
+}
+
+function enhanceShipmentCards() {
+  document.querySelectorAll('[data-edit-shipment]').forEach(control => {
+    const shipment = records.shipments.find(item => String(item.id) === String(control.dataset.editShipment));
+    const line = records.shipmentItems.find(item => String(item.shipmentId) === String(shipment?.id));
+    const stock = stockById(line?.stockItemId);
+    const card = control.closest('.shipment-card');
+    if (!shipment || !card || card.querySelector('.shipment-stock-link')) return;
+    card.querySelector('h4').insertAdjacentHTML('afterend', `<p class="shipment-stock-link">${stock ? `Linked stock: <strong>${esc(stock.product)}</strong> · ${number(line.quantity)} units` : 'No stock item linked'}</p>`);
+    if (shipment.direction === 'incoming' && line && !['delivered', 'cancelled'].includes(shipment.status)) {
+      const actions = card.querySelector('.row-actions');
+      actions.insertAdjacentHTML('afterbegin', `<button class="primary-row-action" data-receive-shipment="${shipment.id}">Receive into stock</button>`);
+    }
+  });
+}
+
+function enhanceStockShipmentActions() {
+  document.querySelectorAll('[data-edit-stock]').forEach(control => {
+    const sheet = control.closest('.action-sheet');
+    if (sheet && !sheet.querySelector('[data-stock-shipment]')) sheet.insertAdjacentHTML('afterbegin', `<button data-stock-shipment="${control.dataset.editStock}">Create linked shipment</button>`);
   });
 }
 
@@ -551,10 +585,13 @@ function renderSaleOptions(selectedId = '') {
 
 function bindRenderedActions() {
   renderActorBadges();
+  enhanceShipmentCards();
+  enhanceStockShipmentActions();
   document.querySelectorAll('[data-edit-stock]').forEach(button => button.onclick = () => openStock(stockById(button.dataset.editStock)));
   document.querySelectorAll('[data-sell-stock]').forEach(button => button.onclick = () => openSale(button.dataset.sellStock));
   document.querySelectorAll('[data-move-stock]').forEach(button => button.onclick = () => openMovement(stockById(button.dataset.moveStock)));
   document.querySelectorAll('[data-stock-expense]').forEach(button => button.onclick = () => openExpense(button.dataset.stockExpense));
+  document.querySelectorAll('[data-stock-shipment]').forEach(button => button.onclick = () => openShipment(null, button.dataset.stockShipment));
   document.querySelectorAll('[data-edit-expense]').forEach(button => button.onclick = () => openExpense('', records.expenses.find(item => String(item.id) === button.dataset.editExpense)));
   document.querySelectorAll('[data-bank-expense]').forEach(button => { button.onclick = () => { const transaction = bankTransactions.find(item => item.id === button.dataset.bankExpense); openExpense('', bankExpense(button.dataset.bankExpense), transaction); }; });
   document.querySelectorAll('[data-bank-income]').forEach(button => { button.onclick = () => { const transaction = bankIncomeTransactions.find(item => item.id === button.dataset.bankIncome); openIncome(bankIncomeRecord(button.dataset.bankIncome), transaction); }; });
@@ -566,6 +603,8 @@ function bindRenderedActions() {
   document.querySelectorAll('[data-archive-record]').forEach(button => button.onclick = () => archiveBusinessRecord(button.dataset.archiveRecord, button.dataset.recordId));
   document.querySelectorAll('[data-void-sale]').forEach(button => button.onclick = () => voidSale(button.dataset.voidSale));
   document.querySelectorAll('[data-shipment-status]').forEach(button => button.onclick = () => updateShipmentStatus(button.dataset.shipmentStatus, button.dataset.nextStatus));
+  document.querySelectorAll('[data-receive-shipment]').forEach(button => button.onclick = () => receiveShipment(button.dataset.receiveShipment));
+  document.querySelectorAll('[data-view-linked-shipment]').forEach(button => button.onclick = () => { view('shipping'); document.querySelector(`[data-edit-shipment="${button.dataset.viewLinkedShipment}"]`)?.closest('.shipment-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
   document.querySelectorAll('[data-classify-record]').forEach(button => button.onclick = () => classifyRecord(button.dataset.classifyRecord, button.dataset.recordId, button.dataset.currentStatus));
 }
 
@@ -636,7 +675,7 @@ function openSale(stockItemId = '') {
   prepareDialog(dialogs.sale);
 }
 
-function openShipment(item = null) {
+function openShipment(item = null, stockItemId = '') {
   const form = $('#shipment-form');
   form.reset();
   form.elements.id.value = item?.id || '';
@@ -655,6 +694,14 @@ function openShipment(item = null) {
   form.elements.shippingCost.value = item?.shippingCost ?? 0;
   form.elements.dataStatus.value = item?.dataStatus || 'unverified';
   form.elements.notes.value = item?.notes || '';
+  const linkedLine = records.shipmentItems.find(line => String(line.shipmentId) === String(item?.id));
+  const selectedStockId = linkedLine?.stockItemId || stockItemId;
+  form.elements.stockItemId.innerHTML = `<option value="">No stock item linked yet</option>${records.stock.filter(stock => !stock.archivedAt).map(stock => `<option value="${stock.id}" ${String(stock.id) === String(selectedStockId) ? 'selected' : ''}>${esc(stock.product)} — ${esc(stock.sku)}</option>`).join('')}`;
+  if (!item && stockItemId) {
+    const stock = stockById(stockItemId);
+    form.elements.itemName.value = stock?.product || '';
+    form.elements.category.value = stock?.category || '';
+  }
   $('#shipment-modal-title').textContent = item ? 'Update shipment' : 'Add shipment';
   prepareDialog(dialogs.shipment);
 }
@@ -813,6 +860,11 @@ $('#shipment-form').addEventListener('submit', async event => {
   const form = event.currentTarget;
   const values = new FormData(form);
   const id = values.get('id');
+  const existing = records.shipments.find(item => String(item.id) === String(id));
+  if (String(values.get('direction')) === 'incoming' && String(values.get('status')) === 'delivered' && existing?.status !== 'delivered') {
+    form.querySelector('[data-form-message]').textContent = 'Save the shipment as planned or in transit, then use “Receive into stock” so inventory is recorded safely.';
+    return;
+  }
   const payload = {
     workspace_id: workspaceId,
     direction: String(values.get('direction')),
@@ -831,8 +883,21 @@ $('#shipment-form').addEventListener('submit', async event => {
     data_status: String(values.get('dataStatus')),
     notes: String(values.get('notes')).trim()
   };
-  const query = id ? supabase.from('shipments').update(payload).eq('id', id).eq('workspace_id', workspaceId) : supabase.from('shipments').insert(payload);
-  await saveForm(form, query, id ? 'Shipment updated.' : 'Shipment added.', dialogs.shipment);
+  const button = form.querySelector('button[type="submit"]');
+  const message = form.querySelector('[data-form-message]');
+  button.disabled = true;
+  message.textContent = '';
+  const { data: saved, error: shipmentError } = id
+    ? await supabase.from('shipments').update(payload).eq('id', id).eq('workspace_id', workspaceId).select('id').single()
+    : await supabase.from('shipments').insert(payload).select('id').single();
+  if (shipmentError) { button.disabled = false; message.textContent = shipmentError.message; return; }
+  const stockItemId = values.get('stockItemId');
+  const { error: linkError } = await supabase.rpc('set_shipment_stock_link', { p_shipment_id: Number(saved.id), p_stock_item_id: stockItemId ? Number(stockItemId) : null, p_quantity: stockItemId ? Number(values.get('units')) : null });
+  button.disabled = false;
+  if (linkError) { message.textContent = `Shipment saved, but its stock link needs attention: ${linkError.message}`; return; }
+  dialogs.shipment.close();
+  await loadWorkspaceData();
+  showMessage(id ? 'Shipment and stock link updated.' : 'Shipment added and linked to stock.', 'success');
 });
 
 $('#tracking-form').addEventListener('submit', async event => {
@@ -917,6 +982,8 @@ $('#income-form').addEventListener('submit', async event => {
 });
 
 async function updateShipmentStatus(id, status) {
+  const shipment = records.shipments.find(item => String(item.id) === String(id));
+  if (shipment?.direction === 'incoming' && status === 'delivered') return receiveShipment(id);
   setStatus('Saving changes');
   const { error } = await supabase.from('shipments').update({ status }).eq('id', id).eq('workspace_id', workspaceId);
   if (error) {
@@ -927,6 +994,17 @@ async function updateShipmentStatus(id, status) {
   await loadWorkspaceData();
   setStatus('Cloud data connected', 'connected');
   showMessage(status === 'delivered' ? 'Shipment marked delivered.' : 'Shipment marked in transit.', 'success');
+}
+
+async function receiveShipment(id) {
+  const shipment = records.shipments.find(item => String(item.id) === String(id));
+  if (!shipment || !window.confirm(`Receive “${shipment.itemName}” into available stock? This can only happen once.`)) return;
+  setStatus('Receiving shipment');
+  const { error } = await supabase.rpc('receive_incoming_shipment', { p_shipment_id: Number(id) });
+  if (error) { setStatus('Receive failed', 'error'); return showMessage(error.message, 'error'); }
+  await loadWorkspaceData();
+  setStatus('Cloud data connected', 'connected');
+  showMessage('Shipment received. Available stock and the movement ledger were updated once.', 'success');
 }
 
 async function archiveStock(id) {
@@ -1044,6 +1122,7 @@ async function signOut() {
 }
 
 document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => view(button.dataset.view)));
+window.addEventListener('hashchange', () => view(window.location.hash.slice(1) || 'dashboard', false));
 document.querySelectorAll('select[name="dataStatus"] option[value="demonstration"]').forEach(option => option.remove());
 document.querySelectorAll('[data-view-jump]').forEach(button => button.addEventListener('click', () => view(button.dataset.viewJump)));
 document.querySelectorAll('[data-open-stock]').forEach(button => button.addEventListener('click', () => openStock()));
@@ -1164,6 +1243,7 @@ async function start() {
     loadingPanel.hidden = true;
     toolkitApp.hidden = false;
     setStatus('Cloud data connected', 'connected');
+    view(window.location.hash.slice(1) || 'dashboard', false);
     if (!membership.avatar_path) profileSetupDialog.showModal();
   } catch (error) {
     showAccessError(`Your account is connected, but the operations data could not be loaded: ${error.message}`);
