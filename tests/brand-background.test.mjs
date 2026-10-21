@@ -17,5 +17,5 @@ test('orange, graphite and petrol teal define the application atmosphere', () =>
 test('the generated background is bundled into the installable app shell', () => {
   assert.equal(existsSync(new URL('../assets/backgrounds/kurionyx-wave-orange-teal-v3.png', import.meta.url)), true);
   assert.match(serviceWorker, /kurionyx-wave-orange-teal-v3\.png/);
-  assert.match(serviceWorker, /kurionyx-shell-v9/);
+  assert.match(serviceWorker, /kurionyx-shell-v10/);
 });
