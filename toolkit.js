@@ -468,7 +468,9 @@ function openExpense(stockItemId = '', expense = null, transaction = null) {
   form.elements.id.value = expense?.id || '';
   form.elements.externalTransactionId.value = expense?.externalTransactionId || linkedTransaction?.id || '';
   form.elements.description.value = expense?.description || linkedTransaction?.merchant || linkedTransaction?.description || '';
-  form.elements.category.value = expense?.category || 'Other';
+  const category = expense?.category || (linkedTransaction?.description?.toLowerCase().includes('amazon') ? 'Amazon selling fees' : 'Other');
+  if (![...form.elements.category.options].some(option => option.value === category)) form.elements.category.add(new Option(category, category));
+  form.elements.category.value = category;
   form.elements.date.value = expense?.date || String(linkedTransaction?.settled || linkedTransaction?.created || new Date().toISOString()).slice(0, 10);
   form.elements.amount.value = expense?.amount ?? (linkedTransaction ? Math.abs(Number(linkedTransaction.amount) || 0) / 100 : '');
   form.elements.paymentReference.value = expense?.paymentReference || linkedTransaction?.notes || linkedTransaction?.description || '';

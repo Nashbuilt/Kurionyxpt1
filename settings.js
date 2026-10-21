@@ -95,6 +95,14 @@ const state = {
 const root = () => document.querySelector('#settings-root');
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 const labelValue = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+const defaultExpenseCategories = [
+  'Amazon selling fees', 'FBA fulfilment fees', 'Amazon storage fees', 'Amazon advertising',
+  'Shipping to Amazon', 'Customer delivery', 'Supplier shipping & customs',
+  'Packaging materials', 'Stock preparation & labelling', 'Stock purchases',
+  'Returns & refunds', 'Marketplace fees', 'Banking & payment fees',
+  'Software & tools', 'Subscriptions', 'Communications', 'Transport',
+  'Professional services', 'Insurance', 'Office & equipment', 'Taxes & compliance', 'Other'
+];
 
 export async function initSettings(options) {
   Object.assign(state, options);
@@ -416,6 +424,20 @@ function updateReferenceLists() {
   setDatalist('product-category-options', state.productCategories);
   setDatalist('sales-channel-options', state.channels);
   setDatalist('expense-category-options', state.expenseCategories);
+  populateExpenseCategorySelect();
+}
+
+function populateExpenseCategorySelect() {
+  const current = document.querySelector('#expense-form [name="category"]');
+  if (!current) return;
+  const selected = current.value || 'Other';
+  const configured = state.expenseCategories.filter(item => !item.archived_at).map(item => item.name);
+  const categories = [...new Set([...defaultExpenseCategories, ...configured])].sort((left, right) => left.localeCompare(right));
+  const select = current.tagName === 'SELECT' ? current : document.createElement('select');
+  select.name = 'category';
+  select.required = true;
+  select.innerHTML = categories.map(category => `<option value="${esc(category)}" ${category === selected ? 'selected' : ''}>${esc(category)}</option>`).join('');
+  if (current !== select) current.replaceWith(select);
 }
 
 function setDatalist(id, items) {
@@ -427,7 +449,7 @@ function enhanceOperationalForms() {
   stockCategory.setAttribute('list', 'product-category-options');
   stockCategory.placeholder = 'Select or retain a legacy category';
   replaceSelectWithDatalist('#sale-form [name="marketplace"]', 'sales-channel-options', 80, 'Select or enter a legacy channel');
-  replaceSelectWithDatalist('#expense-form [name="category"]', 'expense-category-options', 80, 'Select or retain a legacy category');
+  populateExpenseCategorySelect();
 }
 
 function replaceSelectWithDatalist(selector, listId, maxLength, placeholder) {
