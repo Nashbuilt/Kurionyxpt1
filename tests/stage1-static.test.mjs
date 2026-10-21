@@ -91,9 +91,11 @@ test('confirmed dashboard metrics filter for verified records', () => {
   assert.match(toolkit, /confirmedShipments = records\.shipments\.filter\(item => item\.dataStatus === 'verified'/);
 });
 
-test('all record classifications are exposed in forms', () => {
+test('legacy demonstration data remains supported but cannot be selected for new records', () => {
   for (const status of ['verified', 'unverified', 'demonstration']) {
     assert.match(html, new RegExp(`value="${status}"`));
     assert.match(migration, new RegExp(`'${status}'`));
   }
+  assert.match(toolkit, /option\[value="demonstration"\][\s\S]*option\.remove\(\)/);
+  assert.match(toolkit, /\['verified', 'unverified'\]\.includes/);
 });

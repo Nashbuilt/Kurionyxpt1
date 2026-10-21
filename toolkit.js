@@ -916,11 +916,12 @@ async function archiveStock(id) {
 }
 
 async function classifyRecord(recordType, recordId, currentStatus) {
-  const status = window.prompt('Set record status: verified, unverified, or demonstration', currentStatus);
+  const suggestedStatus = currentStatus === 'demonstration' ? 'unverified' : currentStatus;
+  const status = window.prompt('Set record status: verified or unverified', suggestedStatus);
   if (status === null) return;
   const normalized = status.trim().toLowerCase();
-  if (!['verified', 'unverified', 'demonstration'].includes(normalized)) {
-    showMessage('Status must be verified, unverified, or demonstration.', 'error');
+  if (!['verified', 'unverified'].includes(normalized)) {
+    showMessage('Status must be verified or unverified.', 'error');
     return;
   }
   setStatus('Saving changes');
@@ -1006,6 +1007,7 @@ async function signOut() {
 }
 
 document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => view(button.dataset.view)));
+document.querySelectorAll('select[name="dataStatus"] option[value="demonstration"]').forEach(option => option.remove());
 document.querySelectorAll('[data-view-jump]').forEach(button => button.addEventListener('click', () => view(button.dataset.viewJump)));
 document.querySelectorAll('[data-open-stock]').forEach(button => button.addEventListener('click', () => openStock()));
 document.querySelectorAll('[data-open-sale]').forEach(button => button.addEventListener('click', () => openSale()));
