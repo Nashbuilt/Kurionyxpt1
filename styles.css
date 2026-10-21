@@ -196,6 +196,7 @@
 .team-avatar img{width:100%;height:100%;object-fit:cover}
 .profile-photo-button{border:0;background:none;color:var(--green);padding:6px 0 0;font:600 12px Manrope;text-decoration:underline;cursor:pointer}
 .profile-photo-help{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.record-actor{display:inline-grid;width:23px;height:23px;margin-left:7px;border-radius:50%;vertical-align:middle;place-items:center;overflow:hidden;background:var(--bank-mint);color:var(--bank-ink);box-shadow:0 0 0 2px #fff;font:700 9px Manrope;cursor:help}.record-actor img{width:100%;height:100%;object-fit:cover}.record-actor i{font-style:normal}.profile-setup-modal{max-width:460px}.profile-setup-modal form{text-align:center}.profile-setup-mark{width:58px;height:58px;margin:0 auto 18px;border-radius:18px;display:grid;place-items:center;background:var(--bank-coral);color:#fff;font:750 27px Manrope}.profile-setup-modal form>p{margin:0;color:var(--bank-coral);text-transform:uppercase;letter-spacing:.1em;font-size:10px}.profile-setup-modal h2{margin:7px 0 9px}.profile-setup-modal form>span{display:block;color:var(--muted);font-size:13px;line-height:1.55}.profile-setup-picker{margin-top:22px;text-align:left}.profile-setup-preview{min-height:82px;margin:12px 0 18px;border:1px dashed var(--bank-border);border-radius:16px;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:12px}.profile-setup-preview img{width:62px;height:62px;border-radius:50%;object-fit:cover}.profile-setup-modal form>small{display:block;margin-top:10px;color:var(--muted)}
 
 /* Frosted application surfaces and consolidated native-style list actions */
 .toolkit-page{overflow-x:hidden;background:
@@ -232,6 +233,7 @@
   .toolkit-page .action-sheet button,.action-sheet button{min-height:50px;padding:13px 15px;font-size:14px}
   .settings-record{display:grid;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important}
   .settings-record .row-actions{width:auto!important;align-self:center}
+  .record-actor{width:20px;height:20px;margin-left:5px;cursor:default}
 }
 
 @media(prefers-reduced-transparency:reduce){
