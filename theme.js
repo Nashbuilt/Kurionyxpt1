@@ -8,8 +8,8 @@ export const THEMES = Object.freeze({
     description: 'A midnight skyscraper view with deep navy glass and restrained city light.'
   },
   amoled: {
-    label: 'AMOLED Terminal',
-    description: 'True black surfaces, crisp green signals and terminal-inspired details.'
+    label: 'AMOLED 95',
+    description: 'True black Windows 95-inspired surfaces with washed grey, orange and blue.'
   }
 });
 

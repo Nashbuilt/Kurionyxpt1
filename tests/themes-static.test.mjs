@@ -28,6 +28,10 @@ test('Tokyo and AMOLED themes have dedicated responsive visual systems', () => {
   assert.match(styles, /data-theme="amoled"[\s\S]*bank-balance-grid article/);
   assert.match(styles, /data-theme="tokyo"[\s\S]*donut-chart:after/);
   assert.match(styles, /data-theme="amoled"[\s\S]*donut-chart:after/);
+  assert.match(theme, /label: 'AMOLED 95'/);
+  assert.match(styles, /AMOLED 95 — true black, borderless panels/);
+  assert.match(styles, /--bank-coral:#a36f49/);
+  assert.match(styles, /--green:#71869c/);
 });
 
 test('new Kurionyx wordmark is used in the toolkit and black login experience', () => {
@@ -42,7 +46,7 @@ test('new Kurionyx wordmark is used in the toolkit and black login experience', 
 });
 
 test('offline shell includes theme logic and visual assets', () => {
-  assert.match(worker, /kurionyx-shell-v20/);
+  assert.match(worker, /kurionyx-shell-v21/);
   assert.match(worker, /theme\.js/);
   assert.match(worker, /tokyo-skyscraper-night\.png/);
   assert.match(worker, /kurionyx-wordmark-transparent\.png/);
