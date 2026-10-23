@@ -34,7 +34,7 @@ test('new Kurionyx wordmark is used in the toolkit and black login experience', 
 });
 
 test('offline shell includes theme logic and visual assets', () => {
-  assert.match(worker, /kurionyx-shell-v17/);
+  assert.match(worker, /kurionyx-shell-v18/);
   assert.match(worker, /theme\.js/);
   assert.match(worker, /tokyo-skyscraper-night\.png/);
   assert.match(worker, /kurionyx-wordmark-blue\.png/);

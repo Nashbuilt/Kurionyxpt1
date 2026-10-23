@@ -45,3 +45,10 @@ test('browser upload hashes files and uses controlled database functions', () =>
   assert.match(toolkit, /initDocuments/);
   assert.match(worker, /documents\.js/);
 });
+
+test('legal document cards identify every signer and exact signing time', () => {
+  assert.match(script, /Signed by \$\{esc\(signature\.signer_name\)\}/);
+  assert.match(script, /signedDateTime\(signature\.signed_at\)/);
+  assert.match(script, /timeZone: 'Europe\/London'/);
+  assert.match(script, /Signature record/);
+});
