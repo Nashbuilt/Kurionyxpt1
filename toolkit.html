@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kurionyx">
   <title>Operations toolkit — Kurionyx</title>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('kurionyx-theme')||'original'}catch{document.documentElement.dataset.theme='original'}</script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/kurionyx-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icons/kurionyx-192.png">
@@ -19,7 +20,7 @@
 <body class="toolkit-page">
   <div class="toolkit toolkit-standalone" id="toolkit">
     <aside>
-      <a class="toolkit-logo" href="toolkit.html" aria-label="Kurionyx dashboard">K</a>
+      <a class="toolkit-logo" href="toolkit.html" aria-label="Kurionyx dashboard"><img src="assets/branding/kurionyx-wordmark-blue.png" alt="Kurionyx"></a>
       <nav class="grouped-nav" aria-label="Toolkit navigation">
         <div class="nav-group active" data-nav-group="overview"><button class="nav-group-button" type="button" aria-expanded="true">◉ <span>Overview</span><i>›</i></button><div class="nav-submenu"><button class="tool-nav active" data-view="dashboard">Dashboard</button></div></div>
         <div class="nav-group" data-nav-group="operations"><button class="nav-group-button" type="button" aria-expanded="false">▦ <span>Operations</span><i>›</i></button><div class="nav-submenu"><button class="tool-nav" data-view="stock">Stock</button><button class="tool-nav" data-view="sales">Sales</button><button class="tool-nav" data-view="shipping">Shipping</button><button class="tool-nav" data-view="documents">Documents</button></div></div>

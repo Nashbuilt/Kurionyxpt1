@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kurionyx">
   <title>Team sign in — Kurionyx</title>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('kurionyx-theme')||'original'}catch{document.documentElement.dataset.theme='original'}</script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/kurionyx-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="icons/kurionyx-192.png">
@@ -19,7 +20,7 @@
 <body class="login-page">
   <main class="login-shell">
     <section class="login-brand-panel">
-      <a class="brand login-brand" href="index.html"><span class="brand-mark">K</span><span>Kurionyx</span></a>
+      <a class="login-wordmark-link" href="index.html" aria-label="Kurionyx home"><img class="kurionyx-wordmark login-wordmark" src="assets/branding/kurionyx-wordmark-blue.png" alt="Kurionyx"></a>
       <div>
         <p class="eyebrow light"><span></span> Private team workspace</p>
         <h1>Run the operation<br>from one place.</h1>
@@ -30,7 +31,6 @@
 
     <section class="login-form-panel">
       <div class="auth-card login-card">
-        <span class="auth-mark">K</span>
         <p class="section-number">Team access</p>
         <h2>Welcome back</h2>
         <p>Sign in with your Kurionyx account to open the operations toolkit.</p>

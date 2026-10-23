@@ -1,4 +1,7 @@
+import { THEMES, applyTheme, getTheme } from './theme.js';
+
 const sections = [
+  ['appearance', 'Appearance'],
   ['profile', 'Business Profile'],
   ['suppliers', 'Suppliers'],
   ['channels', 'Sales Channels'],
@@ -177,10 +180,24 @@ function bindTeamAvatarFallbacks() {
 }
 
 function renderActiveSection() {
+  if (state.activeTab === 'appearance') return renderAppearance();
   if (state.activeTab === 'profile') return renderProfile();
   if (state.activeTab === 'team') return renderTeam();
   if (state.activeTab === 'integrations') return renderIntegrations();
   return renderCollection(state.activeTab);
+}
+
+function renderAppearance() {
+  const activeTheme = getTheme();
+  const previews = {
+    original: '<span class="theme-preview-sky"></span><span class="theme-preview-card"></span>',
+    tokyo: '<span class="theme-preview-city"></span><span class="theme-preview-card"></span>',
+    amoled: '<span class="theme-preview-terminal">&gt;_</span><span class="theme-preview-card"></span>'
+  };
+  return `<section class="settings-section appearance-settings"><div class="settings-heading"><div><p>Personal display</p><h3>Appearance</h3><span>Choose how Kurionyx looks on this device. Your business records are not affected.</span></div></div>
+    <div class="theme-choice-grid" role="radiogroup" aria-label="Application theme">${Object.entries(THEMES).map(([key, theme]) => `<button type="button" class="theme-choice ${activeTheme === key ? 'active' : ''}" data-theme-choice="${key}" role="radio" aria-checked="${activeTheme === key}"><span class="theme-preview theme-preview-${key}" aria-hidden="true">${previews[key]}</span><span class="theme-choice-copy"><strong>${esc(theme.label)}</strong><small>${esc(theme.description)}</small></span><span class="theme-check" aria-hidden="true">${activeTheme === key ? '✓' : ''}</span></button>`).join('')}</div>
+    <p class="settings-notice">The selected theme is saved privately in this browser, so each phone or computer can use its own appearance.</p>
+  </section>`;
 }
 
 function ownerNotice() {
@@ -300,6 +317,13 @@ function bindSettingsEvents() {
     if (restore) return restoreRecord(restore.dataset.settingsRestore, Number(restore.dataset.recordId));
     const monzo = event.target.closest('[data-connect-monzo]');
     if (monzo) return connectMonzo(monzo);
+    const themeChoice = event.target.closest('[data-theme-choice]');
+    if (themeChoice) {
+      applyTheme(themeChoice.dataset.themeChoice);
+      renderSettings();
+      state.notify(`${THEMES[themeChoice.dataset.themeChoice].label} applied.`, 'success');
+      return;
+    }
     const changePhoto = event.target.closest('[data-change-profile-photo]');
     if (changePhoto) return changePhoto.parentElement.querySelector('[data-profile-photo-input]')?.click();
   });
