@@ -24,6 +24,10 @@ test('Tokyo and AMOLED themes have dedicated responsive visual systems', () => {
   assert.match(styles, /data-theme="amoled"/);
   assert.match(styles, /ui-monospace/);
   assert.match(styles, /@media\(max-width:800px\)[\s\S]*data-theme="tokyo"/);
+  assert.match(styles, /data-theme="tokyo"[\s\S]*bank-balance-grid article/);
+  assert.match(styles, /data-theme="amoled"[\s\S]*bank-balance-grid article/);
+  assert.match(styles, /data-theme="tokyo"[\s\S]*donut-chart:after/);
+  assert.match(styles, /data-theme="amoled"[\s\S]*donut-chart:after/);
 });
 
 test('new Kurionyx wordmark is used in the toolkit and black login experience', () => {
@@ -31,10 +35,14 @@ test('new Kurionyx wordmark is used in the toolkit and black login experience', 
   assert.match(toolkit, /kurionyx-wordmark-transparent\.png/);
   assert.match(styles, /\.login-page\{background:#000/);
   assert.match(styles, /grayscale\(1\) invert\(1\) contrast\(100\)/);
+  assert.match(login, /class="login-smoke"/);
+  assert.doesNotMatch(login, /Run the operation|Private team workspace|Welcome back/);
+  assert.match(styles, /@keyframes smoke-cascade/);
+  assert.match(styles, /prefers-reduced-motion:reduce/);
 });
 
 test('offline shell includes theme logic and visual assets', () => {
-  assert.match(worker, /kurionyx-shell-v19/);
+  assert.match(worker, /kurionyx-shell-v20/);
   assert.match(worker, /theme\.js/);
   assert.match(worker, /tokyo-skyscraper-night\.png/);
   assert.match(worker, /kurionyx-wordmark-transparent\.png/);

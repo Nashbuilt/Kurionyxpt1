@@ -18,30 +18,21 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="login-page">
-  <main class="login-shell">
-    <section class="login-brand-panel">
+  <div class="login-smoke" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <main class="login-shell login-shell-minimal">
+    <section class="login-brand-panel login-brand-minimal">
       <a class="login-wordmark-link" href="index.html" aria-label="Kurionyx home"><img class="kurionyx-wordmark login-wordmark" src="assets/branding/kurionyx-wordmark-transparent.png" alt="Kurionyx"></a>
-      <div>
-        <p class="eyebrow light"><span></span> Private team workspace</p>
-        <h1>Run the operation<br>from one place.</h1>
-        <p>Stock, expenses and performance data for approved Kurionyx team members.</p>
-      </div>
-      <small>Authorised access only</small>
     </section>
 
     <section class="login-form-panel">
       <div class="auth-card login-card">
-        <p class="section-number">Team access</p>
-        <h2>Welcome back</h2>
-        <p>Sign in with your Kurionyx account to open the operations toolkit.</p>
+        <h2>Sign in</h2>
         <form id="login-form">
           <label>Email address<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
           <label>Password<input name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="Your password"></label>
           <p class="form-message" id="login-message" role="status" aria-live="polite"></p>
-          <button class="button primary full" type="submit">Sign in to toolkit</button>
+          <button class="button primary full" type="submit">Continue</button>
         </form>
-        <small>Accounts are created by the Kurionyx workspace owner.</small>
-        <a class="back-link" href="index.html">← Return to public site</a>
       </div>
     </section>
   </main>
