@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { initSettings } from './settings.js';
+import { initDocuments } from './documents.js';
 import { businessPerformance, calculateProfitability, categorySpend, groupExpenses, landedUnitCost, purchasedUnitsFor } from './analysis-tools.js';
 
 const supabase = createClient(
@@ -75,7 +76,18 @@ function actorBadge(item) {
   const actor = records.actors.find(member => member.userId === (item.updatedBy || item.createdBy));
   const timestamp = item.updatedAt || item.createdAt;
   const label = actor ? `${actor.name} · ${shortDate(timestamp)}` : `Legacy record · ${shortDate(timestamp)}`;
-  return `<span class="record-actor" title="${esc(label)}" aria-label="${esc(label)}">${actor?.avatarUrl ? `<img src="${esc(actor.avatarUrl)}" alt="">` : `<i>${esc((actor?.name || '?')[0].toUpperCase())}</i>`}</span>`;
+  if (!actor) return `<span class="record-actor legacy-actor" title="${esc(label)}" aria-label="${esc(label)}"><i>↺</i></span>`;
+  const initial = esc((actor.name || 'T')[0].toUpperCase());
+  return `<span class="record-actor" title="${esc(label)}" aria-label="${esc(label)}">${actor.avatarUrl ? `<img data-avatar-image src="${esc(actor.avatarUrl)}" alt=""><i data-avatar-fallback hidden>${initial}</i>` : `<i>${initial}</i>`}</span>`;
+}
+
+function bindAvatarFallbacks(scope = document) {
+  scope.querySelectorAll('img[data-avatar-image]').forEach(image => {
+    image.addEventListener('error', () => {
+      image.hidden = true;
+      if (image.nextElementSibling) image.nextElementSibling.hidden = false;
+    }, { once: true });
+  });
 }
 
 function view(name, updateUrl = true) {
@@ -293,7 +305,7 @@ async function loadWorkspaceData() {
   records.actors = (memberResult.data || []).map(member => ({ userId: member.user_id, name: member.display_name || member.email || 'Team member', path: member.avatar_path, avatarUrl: '' }));
   const actorPhotos = records.actors.filter(actor => actor.path);
   if (actorPhotos.length) {
-    const { data: signedActors, error: actorError } = await supabase.storage.from('profile-pictures').createSignedUrls(actorPhotos.map(actor => actor.path), 3600);
+    const { data: signedActors, error: actorError } = await supabase.storage.from('profile-pictures').createSignedUrls(actorPhotos.map(actor => actor.path), 604800);
     if (actorError) throw actorError;
     actorPhotos.forEach((actor, index) => { actor.avatarUrl = signedActors[index]?.signedUrl || ''; });
   }
@@ -672,6 +684,7 @@ async function archiveProduct(id) {
 
 function bindRenderedActions() {
   renderActorBadges();
+  bindAvatarFallbacks();
   enhanceShipmentCards();
   enhanceStockShipmentActions();
   document.querySelectorAll('[data-edit-stock]').forEach(button => button.onclick = () => openStock(stockById(button.dataset.editStock)));
@@ -1377,6 +1390,11 @@ async function start() {
       const settingsRoot = $('#settings-root');
       settingsRoot.innerHTML = '<div class="settings-error"><strong>Settings could not be loaded.</strong><p></p><small>The existing operations toolkit remains available.</small></div>';
       settingsRoot.querySelector('p').textContent = settingsError.message;
+    }
+    try {
+      await initDocuments({ supabase, workspaceId, userId: session.user.id, notify: showMessage });
+    } catch (documentsError) {
+      $('#document-vault').innerHTML = `<div class="settings-error"><strong>Documents could not be loaded.</strong><p>${esc(documentsError.message)}</p></div>`;
     }
     loadingPanel.hidden = true;
     toolkitApp.hidden = false;

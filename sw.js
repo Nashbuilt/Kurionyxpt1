@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kurionyx-shell-v15';
+const CACHE_NAME = 'kurionyx-shell-v16';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
   '/assets/backgrounds/kurionyx-wave-orange-teal-v3.png',
   '/auth.js',
   '/toolkit.js',
+  '/documents.js',
   '/settings.js',
   '/analysis-tools.js',
   '/pwa.js',

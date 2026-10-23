@@ -166,6 +166,14 @@ function renderSettings() {
     <nav class="settings-nav" aria-label="Settings sections">${sections.map(([key, label]) => `<button type="button" data-settings-tab="${key}" class="${state.activeTab === key ? 'active' : ''}">${esc(label)}</button>`).join('')}</nav>
     <div class="settings-content">${renderActiveSection()}</div>
   </div>`;
+  bindTeamAvatarFallbacks();
+}
+
+function bindTeamAvatarFallbacks() {
+  root().querySelectorAll('img[data-team-avatar]').forEach(image => image.addEventListener('error', () => {
+    image.hidden = true;
+    if (image.nextElementSibling) image.nextElementSibling.hidden = false;
+  }, { once: true }));
 }
 
 function renderActiveSection() {
@@ -214,13 +222,13 @@ function renderRecordCard(key, config, item) {
 }
 
 function renderTeam() {
-  return `<section class="settings-section"><div class="settings-heading"><div><p>Workspace access</p><h3>Team & Permissions</h3><span>Each person can change their own private profile picture. Membership does not establish legal ownership, directorship or banking authority.</span></div></div><div class="settings-notice">Invitations, account creation and role changes are not available in this stage because they require a separately reviewed administration workflow.</div><div class="team-list">${state.team.map(member => `<article><div class="team-avatar">${member.avatarUrl ? `<img src="${esc(member.avatarUrl)}" alt="${esc(member.display_name || 'Team member')} profile picture">` : esc((member.display_name || member.email || '?')[0].toUpperCase())}</div><div><strong>${esc(member.display_name || member.email || member.user_id)}</strong><span>${member.email ? `${esc(member.email)} · ` : ''}${member.user_id === state.userId ? 'Current account · ' : ''}${member.role === 'owner' ? 'Application workspace owner' : 'Team member'}</span>${member.user_id === state.userId ? '<button type="button" class="profile-photo-button" data-change-profile-photo>Change profile picture</button><input type="file" data-profile-photo-input accept="image/jpeg,image/png,image/webp" hidden><small class="profile-photo-help">JPG, PNG or WebP, up to 5 MB.</small>' : ''}</div><span class="data-status status-${member.role === 'owner' ? 'verified' : 'unverified'}">${esc(member.role)}</span></article>`).join('') || '<p class="empty compact">No workspace members returned.</p>'}</div></section>`;
+  return `<section class="settings-section"><div class="settings-heading"><div><p>Workspace access</p><h3>Team & Permissions</h3><span>Each person can change their own private profile picture. Membership does not establish legal ownership, directorship or banking authority.</span></div></div><div class="settings-notice">Invitations, account creation and role changes are not available in this stage because they require a separately reviewed administration workflow.</div><div class="team-list">${state.team.map(member => { const initial = esc((member.display_name || member.email || 'T')[0].toUpperCase()); return `<article><div class="team-avatar">${member.avatarUrl ? `<img data-team-avatar src="${esc(member.avatarUrl)}" alt="${esc(member.display_name || 'Team member')} profile picture"><span hidden>${initial}</span>` : `<span>${initial}</span>`}</div><div><strong>${esc(member.display_name || member.email || member.user_id)}</strong><span>${member.email ? `${esc(member.email)} · ` : ''}${member.user_id === state.userId ? 'Current account · ' : ''}${member.role === 'owner' ? 'Application workspace owner' : 'Team member'}</span>${member.user_id === state.userId ? '<button type="button" class="profile-photo-button" data-change-profile-photo>Change profile picture</button><input type="file" data-profile-photo-input accept="image/jpeg,image/png,image/webp" hidden><small class="profile-photo-help">JPG, PNG or WebP, up to 5 MB.</small>' : ''}</div><span class="data-status status-${member.role === 'owner' ? 'verified' : 'unverified'}">${esc(member.role)}</span></article>`; }).join('') || '<p class="empty compact">No workspace members returned.</p>'}</div></section>`;
 }
 
 async function loadTeamAvatarUrls() {
   const members = state.team.filter(member => member.avatar_path);
   if (!members.length) return;
-  const { data, error } = await state.supabase.storage.from('profile-pictures').createSignedUrls(members.map(member => member.avatar_path), 3600);
+  const { data, error } = await state.supabase.storage.from('profile-pictures').createSignedUrls(members.map(member => member.avatar_path), 604800);
   if (error) throw error;
   members.forEach((member, index) => { member.avatarUrl = data[index]?.signedUrl || ''; });
 }

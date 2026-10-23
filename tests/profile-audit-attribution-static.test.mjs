@@ -30,4 +30,6 @@ test('record actor avatars provide desktop details and compact mobile display', 
   assert.match(toolkit, /function renderActorBadges/);
   assert.match(styles, /\.record-actor/);
   assert.match(styles, /@media\(max-width:800px\)[\s\S]*\.record-actor/);
+  assert.match(toolkit, /legacy-actor/);
+  assert.match(toolkit, /bindAvatarFallbacks/);
 });
