@@ -1275,6 +1275,10 @@ document.querySelectorAll('.nav-group-button').forEach(button => button.addEvent
 window.addEventListener('hashchange', () => view(window.location.hash.slice(1) || 'dashboard', false));
 document.querySelectorAll('select[name="dataStatus"] option[value="demonstration"]').forEach(option => option.remove());
 document.querySelectorAll('[data-view-jump]').forEach(button => button.addEventListener('click', () => view(button.dataset.viewJump)));
+$('#theme-settings-button').addEventListener('click', () => {
+  view('settings');
+  requestAnimationFrame(() => document.querySelector('[data-settings-tab="appearance"]')?.click());
+});
 document.querySelectorAll('[data-open-stock]').forEach(button => button.addEventListener('click', () => openStock()));
 document.querySelectorAll('[data-open-sale]').forEach(button => button.addEventListener('click', () => openSale()));
 document.querySelectorAll('[data-open-shipment]').forEach(button => button.addEventListener('click', () => openShipment()));

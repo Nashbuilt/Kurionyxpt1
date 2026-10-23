@@ -1,7 +1,7 @@
 import { THEMES, applyTheme, getTheme } from './theme.js';
 
 const sections = [
-  ['appearance', 'Appearance'],
+  ['appearance', 'Themes & Appearance'],
   ['profile', 'Business Profile'],
   ['suppliers', 'Suppliers'],
   ['channels', 'Sales Channels'],
